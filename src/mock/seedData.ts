@@ -79,6 +79,7 @@ export const SEED_PROJECTS: Project[] = [
     freelancerName: 'Ananya Roy',
     freelancerAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=250&q=80',
     freelancerTitle: 'Senior Full-Stack Engineer',
+    access: 'open',
     status: 'active',
     fundState: 'FROZEN',
     amountInCustody: 40000,

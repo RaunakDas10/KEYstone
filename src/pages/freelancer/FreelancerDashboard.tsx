@@ -31,7 +31,7 @@ export const FreelancerDashboard: React.FC = () => {
               Withdrawal Balance (₹{withdrawableTotal.toLocaleString()})
             </Button>
           </Link>
-          <Link to="/marketplace">
+          <Link to="/marketplace?view=projects">
             <Button variant="outline" size="md">
               Find New Work
             </Button>

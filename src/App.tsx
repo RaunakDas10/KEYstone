@@ -118,7 +118,6 @@ export function App() {
             <Route path="/admin/disputes" element={<AdminDisputesPage />} />
             <Route path="/admin/funds" element={<AdminFundsPage />} />
             <Route path="/admin/ledger" element={<AdminLedgerPage />} />
-            <Route path="/admin/messages" element={<ChatPage />} />
             <Route path="/admin/notifications" element={<NotificationsPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/settings" element={<AdminDashboard />} />

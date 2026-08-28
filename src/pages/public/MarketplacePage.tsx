@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, ShieldCheck, Award, Star, Clock, Filter, ArrowRight } from 'lucide-react';
 import { SEED_FREELANCERS, SEED_PORTFOLIO } from '../../mock/seedData';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { useProjectStore } from '../../store';
 
 export const MarketplacePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchParams] = useSearchParams();
+  const projectsOnly = searchParams.get('view') === 'projects';
+  const projects = useProjectStore((state) => state.projects);
+  const openProjects = projects.filter((project) => project.access === 'open');
 
   const freelancers = SEED_FREELANCERS;
 
@@ -38,6 +43,15 @@ export const MarketplacePage: React.FC = () => {
           </p>
         </div>
 
+        <section className="mb-12">
+          <div className="flex items-end justify-between gap-4 mb-4">
+            <div><span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Freelancer opportunities</span><h2 className="text-2xl font-black text-white mt-1">Open projects</h2><p className="text-xs text-slate-400 mt-1">Projects marked open to all are available for verified freelancers to review.</p></div>
+            <span className="text-xs font-mono text-slate-400">{openProjects.length} available</span>
+          </div>
+          {openProjects.length ? <div className="grid md:grid-cols-2 gap-4">{openProjects.map((project) => <div key={project.id} className="bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-5"><div className="flex justify-between gap-3"><div><span className="text-[10px] uppercase font-bold text-emerald-400">{project.category}</span><h3 className="text-base font-bold text-white mt-1">{project.title}</h3></div><span className="text-sm font-mono font-bold text-white">₹{project.budget.toLocaleString()}</span></div><p className="text-xs text-slate-400 mt-3 line-clamp-2">{project.description}</p><div className="flex flex-wrap gap-1.5 mt-4">{project.skills.map((skill) => <span key={skill} className="text-[10px] bg-slate-950 border border-slate-800 text-slate-300 px-2 py-1 rounded">{skill}</span>)}</div><div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-800"><span className="text-[11px] text-slate-500">Deadline: {project.deadline}</span><Link to={`/freelancer/projects/${project.id}`}><Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>View project</Button></Link></div></div>)}</div> : <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center text-xs text-slate-500">No open projects are published yet.</div>}
+        </section>
+
+        {projectsOnly ? <section className="max-w-4xl mx-auto"><div className="grid md:grid-cols-2 gap-4">{openProjects.map((project) => <div key={project.id} className="bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-5"><span className="text-[10px] uppercase font-bold text-emerald-400">{project.category}</span><h3 className="text-base font-bold text-white mt-1">{project.title}</h3><p className="text-xs text-slate-400 mt-3">{project.description}</p><p className="text-sm font-mono font-bold text-white mt-4">₹{project.budget.toLocaleString()}</p><Link to={`/freelancer/projects/${project.id}`}><Button variant="outline" size="sm" className="mt-4" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>View project</Button></Link></div>)}</div>{!openProjects.length && <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center text-xs text-slate-500">No new open projects are available.</div>}</section> : <>
         {/* Search Bar & Categories */}
         <div className="max-w-4xl mx-auto mb-12 space-y-4">
           <div className="relative">
@@ -140,7 +154,7 @@ export const MarketplacePage: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+        </div></>}
       </div>
     </div>
   );

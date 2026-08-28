@@ -1,6 +1,5 @@
 import React from 'react';
-import { Users, ShieldCheck, MessageSquare, Mail } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Users, ShieldCheck, Mail } from 'lucide-react';
 import { SEED_USERS } from '../../mock/seedData';
 import { useProjectStore } from '../../store';
 import { Button } from '../../components/ui/Button';
@@ -59,9 +58,6 @@ export const AdminUsersPage: React.FC = () => {
                   <td className="p-4 text-slate-400 font-mono">{u.joinedDate}</td>
                   <td className="p-4">
                     <div className="flex flex-wrap gap-2">
-                      <Link to={`/admin/messages?userId=${u.id}`}>
-                        <Button variant="outline" size="sm" leftIcon={<MessageSquare className="w-3.5 h-3.5" />}>Chat</Button>
-                      </Link>
                       <a href={`mailto:${u.email}?subject=KEYStone%20Platform%20Message`}>
                         <Button variant="secondary" size="sm" leftIcon={<Mail className="w-3.5 h-3.5" />}>Email</Button>
                       </a>
