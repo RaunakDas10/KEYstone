@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "tsx server/index.ts",
+    "dev:all": "concurrently -k \"npm run dev\" \"npm run server\"",
+    "db:seed": "tsx server/seed.ts",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -12,7 +15,11 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "lucide-react": "^1.35.0",
+    "mongoose": "^8.9.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
@@ -22,11 +29,15 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.1.2",
     "oxlint": "^1.79.0",
+    "tsx": "^4.19.2",
     "typescript": "~6.0.2",
     "vite": "^6.4.1"
   }

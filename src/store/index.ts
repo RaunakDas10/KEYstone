@@ -1,23 +1,47 @@
 import { create } from 'zustand';
-import { User, UserRole, Project, Milestone, CheckpointSubmission, LedgerEntry, Dispute, Message, Notification, FundState, Report } from '../types';
-import { SEED_USERS, SEED_PROJECTS, SEED_LEDGER_ENTRIES, SEED_DISPUTES, SEED_MESSAGES, SEED_NOTIFICATIONS } from '../mock/seedData';
+import {
+  User,
+  UserRole,
+  Project,
+  Milestone,
+  CheckpointSubmission,
+  LedgerEntry,
+  Dispute,
+  Message,
+  Notification,
+  FundState,
+  Report,
+} from '../types';
+import {
+  SEED_USERS,
+  SEED_PROJECTS,
+  SEED_LEDGER_ENTRIES,
+  SEED_DISPUTES,
+  SEED_MESSAGES,
+  SEED_NOTIFICATIONS,
+} from '../mock/seedData';
+import { api } from '../services/api';
 
 // ---------------- AUTH STORE ----------------
 interface AuthState {
   currentUser: User;
   isAuthenticated: boolean;
+  users: User[];
   login: (role: UserRole) => void;
   logout: () => void;
   switchRole: (role: UserRole) => void;
   updateProfile: (updates: Partial<User>) => void;
+  fetchUsers: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   currentUser: SEED_USERS.client,
   isAuthenticated: true,
+  users: Object.values(SEED_USERS),
   login: (role: UserRole) => {
     const user = SEED_USERS[role] || SEED_USERS.client;
     set({ currentUser: user, isAuthenticated: true });
+    api.login(role).catch(() => {});
   },
   logout: () => {
     set({ isAuthenticated: false });
@@ -25,11 +49,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   switchRole: (role: UserRole) => {
     const user = SEED_USERS[role] || SEED_USERS.client;
     set({ currentUser: user });
+    api.login(role).catch(() => {});
   },
   updateProfile: (updates: Partial<User>) => {
-    set((state) => ({
-      currentUser: { ...state.currentUser, ...updates },
-    }));
+    const updated = { ...get().currentUser, ...updates };
+    set({ currentUser: updated });
+    api.updateProfile(updated.id, updates).catch(() => {});
+  },
+  fetchUsers: async () => {
+    try {
+      const users = await api.getUsers();
+      if (users && users.length > 0) {
+        set({ users });
+      }
+    } catch {
+      // Keep seeded fallback
+    }
   },
 }));
 
@@ -37,6 +72,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 interface LedgerState {
   entries: LedgerEntry[];
   addEntry: (entry: Omit<LedgerEntry, 'id' | 'hash' | 'timestamp'>) => void;
+  fetchEntries: (projectId?: string) => Promise<void>;
 }
 
 export const useLedgerStore = create<LedgerState>((set) => ({
@@ -52,6 +88,17 @@ export const useLedgerStore = create<LedgerState>((set) => ({
       hash,
     };
     set((state) => ({ entries: [newEntry, ...state.entries] }));
+    api.createLedgerEntry(newEntry).catch(() => {});
+  },
+  fetchEntries: async (projectId?: string) => {
+    try {
+      const entries = await api.getLedger(projectId);
+      if (entries && entries.length > 0) {
+        set({ entries });
+      }
+    } catch {
+      // Keep seeded fallback
+    }
   },
 }));
 
@@ -60,6 +107,7 @@ interface MessageState {
   messages: Message[];
   sendMessage: (projectId: string, content: string, sender: User) => void;
   addSystemEvent: (projectId: string, content: string, eventType: LedgerEntry['eventType']) => void;
+  fetchMessages: (projectId?: string) => Promise<void>;
 }
 
 export const useMessageStore = create<MessageState>((set) => ({
@@ -76,6 +124,7 @@ export const useMessageStore = create<MessageState>((set) => ({
       timestamp: new Date().toISOString(),
     };
     set((state) => ({ messages: [...state.messages, newMessage] }));
+    api.sendMessage(newMessage).catch(() => {});
   },
   addSystemEvent: (projectId, content, eventType) => {
     const systemMsg: Message = {
@@ -90,6 +139,17 @@ export const useMessageStore = create<MessageState>((set) => ({
       systemEventType: eventType,
     };
     set((state) => ({ messages: [...state.messages, systemMsg] }));
+    api.sendMessage(systemMsg).catch(() => {});
+  },
+  fetchMessages: async (projectId?: string) => {
+    try {
+      const messages = await api.getMessages(projectId);
+      if (messages && messages.length > 0) {
+        set({ messages });
+      }
+    } catch {
+      // Keep seeded fallback
+    }
   },
 }));
 
@@ -99,6 +159,7 @@ interface NotificationState {
   markAsRead: (id: string) => void;
   addNotification: (notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
   notificationsFor: (userId: string) => Notification[];
+  fetchNotifications: (userId?: string) => Promise<void>;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
@@ -107,6 +168,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     set((state) => ({
       notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
     }));
+    api.markNotificationRead(id).catch(() => {});
   },
   addNotification: (notif) => {
     const newNotif: Notification = {
@@ -116,8 +178,20 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       read: false,
     };
     set((state) => ({ notifications: [newNotif, ...state.notifications] }));
+    api.createNotification(newNotif).catch(() => {});
   },
-  notificationsFor: (userId) => get().notifications.filter((n) => n.userId === userId || n.userId === 'all'),
+  notificationsFor: (userId) =>
+    get().notifications.filter((n) => n.userId === userId || n.userId === 'all'),
+  fetchNotifications: async (userId?: string) => {
+    try {
+      const notifs = await api.getNotifications(userId);
+      if (notifs && notifs.length > 0) {
+        set({ notifications: notifs });
+      }
+    } catch {
+      // Keep seeded fallback
+    }
+  },
 }));
 
 // ---------------- PROJECT STORE ----------------
@@ -127,16 +201,29 @@ interface ProjectState {
   reports: Report[];
   blockedUserIds: string[];
   activeProjectId: string | null;
+  isLoading: boolean;
+  dbConnected: boolean;
   setActiveProjectId: (id: string | null) => void;
+  fetchInitialData: () => Promise<void>;
   createProject: (projectData: Partial<Project>) => Project;
-  submitCheckpoint: (projectId: string, milestoneId: string, submission: Omit<CheckpointSubmission, 'id' | 'submittedAt' | 'status'>) => void;
+  submitCheckpoint: (
+    projectId: string,
+    milestoneId: string,
+    submission: Omit<CheckpointSubmission, 'id' | 'submittedAt' | 'status'>
+  ) => void;
   approveCheckpoint: (projectId: string, milestoneId: string) => void;
   rejectWith90_10Resolution: (projectId: string, milestoneId: string) => void;
   autoUnlockProject: (projectId: string) => void;
   raiseDispute: (projectId: string, reason: string, description: string, user: User) => void;
   resolveDisputeByAdmin: (disputeId: string, clientRefundPct: number) => void;
   withdrawPayout: (amount: number, user: User, method: string) => boolean;
-  reportUser: (target: User, projectId: string | undefined, reason: string, description: string, reporter: User) => void;
+  reportUser: (
+    target: User,
+    projectId: string | undefined,
+    reason: string,
+    description: string,
+    reporter: User
+  ) => void;
   toggleUserBlocked: (userId: string) => void;
   rateFreelancer: (projectId: string, rating: number, review: string, client: User) => void;
   sendUserWarning: (target: User, reason: string) => void;
@@ -149,7 +236,50 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   reports: [],
   blockedUserIds: [],
   activeProjectId: 'proj_01',
+  isLoading: false,
+  dbConnected: false,
   setActiveProjectId: (id) => set({ activeProjectId: id }),
+
+  fetchInitialData: async () => {
+    set({ isLoading: true });
+    try {
+      const [health, projects, disputes, ledger, messages, notifs, reports] = await Promise.allSettled([
+        api.checkHealth(),
+        api.getProjects(),
+        api.getDisputes(),
+        api.getLedger(),
+        api.getMessages(),
+        api.getNotifications(),
+        api.getReports(),
+      ]);
+
+      const isConnected = health.status === 'fulfilled' && health.value.database === 'connected';
+      set({ dbConnected: isConnected });
+
+      if (projects.status === 'fulfilled' && projects.value?.length > 0) {
+        set({ projects: projects.value });
+      }
+      if (disputes.status === 'fulfilled' && disputes.value?.length > 0) {
+        set({ disputes: disputes.value });
+      }
+      if (ledger.status === 'fulfilled' && ledger.value?.length > 0) {
+        useLedgerStore.setState({ entries: ledger.value });
+      }
+      if (messages.status === 'fulfilled' && messages.value?.length > 0) {
+        useMessageStore.setState({ messages: messages.value });
+      }
+      if (notifs.status === 'fulfilled' && notifs.value?.length > 0) {
+        useNotificationStore.setState({ notifications: notifs.value });
+      }
+      if (reports.status === 'fulfilled' && reports.value?.length > 0) {
+        set({ reports: reports.value });
+      }
+    } catch (err) {
+      console.warn('[Store] Initial data load fallback:', err);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
 
   createProject: (projectData) => {
     const id = `proj_${Date.now()}`;
@@ -201,7 +331,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     set((state) => ({ projects: [newProject, ...state.projects] }));
 
-    // Record ledger entry
+    // Record in MongoDB & local ledger
     useLedgerStore.getState().addEntry({
       projectId: id,
       projectTitle: newProject.title,
@@ -216,12 +346,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       notes: `100% project funds (₹${newProject.budget.toLocaleString()}) secured in KEYStone custody.`,
     });
 
-    // Send system message
     useMessageStore.getState().addSystemEvent(
       id,
       `FUNDS SECURED IN CUSTODY: ₹${newProject.budget.toLocaleString()} locked by KEYStone Escrow.`,
       'FUND_DEPOSITED'
     );
+
+    api.createProject(newProject).catch(() => {});
 
     return newProject;
   },
@@ -264,7 +395,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const milestone = project.milestones.find((m) => m.id === milestoneId);
       const amount = milestone?.amount || 0;
 
-      // Ledger log
       useLedgerStore.getState().addEntry({
         projectId,
         projectTitle: project.title,
@@ -279,14 +409,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         notes: `Working demo submitted for ${milestone?.title}. ₹${amount.toLocaleString()} frozen for review.`,
       });
 
-      // System message
       useMessageStore.getState().addSystemEvent(
         projectId,
         `CHECKPOINT SUBMITTED: ₹${amount.toLocaleString()} moved to FROZEN status during review.`,
         'FUNDS_FROZEN'
       );
 
-      // Notification to client
       useNotificationStore.getState().addNotification({
         userId: project.clientId,
         type: 'checkpoint',
@@ -295,6 +423,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         link: `/client/projects/${projectId}`,
       });
     }
+
+    api.submitCheckpoint(projectId, milestoneId, submissionData).catch(() => {});
   },
 
   approveCheckpoint: (projectId, milestoneId) => {
@@ -310,7 +440,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         );
 
         const updatedSubmissions = p.submissions.map((s) =>
-          s.milestoneId === milestoneId ? { ...s, status: 'approved' as const, reviewedAt: new Date().toISOString() } : s
+          s.milestoneId === milestoneId
+            ? { ...s, status: 'approved' as const, reviewedAt: new Date().toISOString() }
+            : s
         );
 
         const allApproved = updatedMilestones.every((m) => m.status === 'approved');
@@ -364,6 +496,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         });
       }
     }
+
+    api.approveCheckpoint(projectId, milestoneId).catch(() => {});
   },
 
   rejectWith90_10Resolution: (projectId, milestoneId) => {
@@ -422,6 +556,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         'RESOLUTION_90_10_EXECUTED'
       );
     }
+
+    api.reject90_10(projectId, milestoneId).catch(() => {});
   },
 
   autoUnlockProject: (projectId) => {
@@ -467,6 +603,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         'AUTO_UNLOCK_EXECUTED'
       );
     }
+
+    api.autoUnlock(projectId).catch(() => {});
   },
 
   raiseDispute: (projectId, reason, description, user) => {
@@ -525,6 +663,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         'DISPUTE_OPENED'
       );
     }
+
+    api.raiseDispute({ projectId, reason, description, user }).catch(() => {});
   },
 
   resolveDisputeByAdmin: (disputeId, clientRefundPct) => {
@@ -588,43 +728,136 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         'DISPUTE_RESOLVED'
       );
     }
+
+    api.resolveDispute(disputeId, clientRefundPct).catch(() => {});
   },
 
   withdrawPayout: (amount, user, method) => {
-    const available = get().projects.filter((p) => p.freelancerId === user.id).reduce((sum, p) => sum + p.amountWithdrawable, 0);
+    const available = get()
+      .projects.filter((p) => p.freelancerId === user.id)
+      .reduce((sum, p) => sum + p.amountWithdrawable, 0);
+
     if (amount <= 0 || amount > available) return false;
+
     let remaining = amount;
-    set((state) => ({ projects: state.projects.map((project) => {
-      if (project.freelancerId !== user.id || remaining <= 0) return project;
-      const debit = Math.min(project.amountWithdrawable, remaining);
-      remaining -= debit;
-      return { ...project, amountWithdrawable: project.amountWithdrawable - debit, amountPaid: project.amountPaid + debit, fundState: project.amountWithdrawable - debit > 0 ? project.fundState : 'PAID' as FundState, lastActivityAt: new Date().toISOString() };
-    }) }));
-    useLedgerStore.getState().addEntry({ projectId: 'platform', projectTitle: 'Freelancer Payout', actorId: user.id, actorName: user.name, actorRole: user.role, eventType: 'PAYOUT_WITHDRAWN', previousState: 'WITHDRAWABLE', newState: 'PAID', amount, referenceId: `TXN_PAYOUT_${Date.now()}`, notes: `${method.toUpperCase()} payout settled to ${user.name}.` });
-    useNotificationStore.getState().addNotification({ userId: user.id, type: 'payment', title: 'Payout completed', description: `₹${amount.toLocaleString()} was sent via ${method.toUpperCase()}.`, link: '/freelancer/income' });
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.freelancerId !== user.id || remaining <= 0) return project;
+        const debit = Math.min(project.amountWithdrawable, remaining);
+        remaining -= debit;
+        return {
+          ...project,
+          amountWithdrawable: project.amountWithdrawable - debit,
+          amountPaid: project.amountPaid + debit,
+          fundState: project.amountWithdrawable - debit > 0 ? project.fundState : ('PAID' as FundState),
+          lastActivityAt: new Date().toISOString(),
+        };
+      }),
+    }));
+
+    useLedgerStore.getState().addEntry({
+      projectId: 'platform',
+      projectTitle: 'Freelancer Payout',
+      actorId: user.id,
+      actorName: user.name,
+      actorRole: user.role,
+      eventType: 'PAYOUT_WITHDRAWN',
+      previousState: 'WITHDRAWABLE',
+      newState: 'PAID',
+      amount,
+      referenceId: `TXN_PAYOUT_${Date.now()}`,
+      notes: `${method.toUpperCase()} payout settled to ${user.name}.`,
+    });
+
+    useNotificationStore.getState().addNotification({
+      userId: user.id,
+      type: 'payment',
+      title: 'Payout completed',
+      description: `₹${amount.toLocaleString()} was sent via ${method.toUpperCase()}.`,
+      link: '/freelancer/income',
+    });
+
+    api.withdrawPayout(amount, user, method).catch(() => {});
     return true;
   },
 
   reportUser: (target, projectId, reason, description, reporter) => {
-    const report: Report = { id: `report_${Date.now()}`, reporterId: reporter.id, reporterName: reporter.name, reporterRole: reporter.role, targetId: target.id, targetName: target.name, projectId, reason, description, createdAt: new Date().toISOString(), status: 'open' };
+    const report: Report = {
+      id: `report_${Date.now()}`,
+      reporterId: reporter.id,
+      reporterName: reporter.name,
+      reporterRole: reporter.role,
+      targetId: target.id,
+      targetName: target.name,
+      projectId,
+      reason,
+      description,
+      createdAt: new Date().toISOString(),
+      status: 'open',
+    };
+
     set((state) => ({ reports: [report, ...state.reports] }));
-    useNotificationStore.getState().addNotification({ userId: 'all', type: 'system', title: 'New report submitted', description: `${reporter.name} reported ${target.name}.`, link: '/admin/reports' });
+
+    useNotificationStore.getState().addNotification({
+      userId: 'all',
+      type: 'system',
+      title: 'New report submitted',
+      description: `${reporter.name} reported ${target.name}.`,
+      link: '/admin/reports',
+    });
+
+    api.createReport({ reporter, target, projectId, reason, description }).catch(() => {});
   },
 
-  toggleUserBlocked: (userId) => set((state) => ({ blockedUserIds: state.blockedUserIds.includes(userId) ? state.blockedUserIds.filter((id) => id !== userId) : [...state.blockedUserIds, userId] })),
+  toggleUserBlocked: (userId) =>
+    set((state) => ({
+      blockedUserIds: state.blockedUserIds.includes(userId)
+        ? state.blockedUserIds.filter((id) => id !== userId)
+        : [...state.blockedUserIds, userId],
+    })),
 
   rateFreelancer: (projectId, rating, review, client) => {
     const project = get().projects.find((item) => item.id === projectId);
-    if (!project || project.clientId !== client.id || project.status !== 'completed' || !project.freelancerId) return;
-    set((state) => ({ projects: state.projects.map((item) => item.id === projectId ? { ...item, freelancerRating: rating, freelancerReview: review } : item) }));
-    useNotificationStore.getState().addNotification({ userId: project.freelancerId, type: 'project', title: 'New project rating', description: `${client.name} rated your completed project ${rating}/5.`, link: `/freelancer/projects/${projectId}` });
+    if (!project || project.clientId !== client.id || project.status !== 'completed' || !project.freelancerId)
+      return;
+
+    set((state) => ({
+      projects: state.projects.map((item) =>
+        item.id === projectId ? { ...item, freelancerRating: rating, freelancerReview: review } : item
+      ),
+    }));
+
+    useNotificationStore.getState().addNotification({
+      userId: project.freelancerId,
+      type: 'project',
+      title: 'New project rating',
+      description: `${client.name} rated your completed project ${rating}/5.`,
+      link: `/freelancer/projects/${projectId}`,
+    });
+
+    api.rateFreelancer(projectId, rating, review).catch(() => {});
   },
 
   sendUserWarning: (target, reason) => {
-    useNotificationStore.getState().addNotification({ userId: target.id, type: 'system', title: 'Official platform warning', description: reason, link: '/freelancer/settings' });
+    useNotificationStore.getState().addNotification({
+      userId: target.id,
+      type: 'system',
+      title: 'Official platform warning',
+      description: reason,
+      link: '/freelancer/settings',
+    });
   },
 
-  resetAll: () => set({ projects: SEED_PROJECTS, disputes: SEED_DISPUTES, reports: [], blockedUserIds: [], activeProjectId: 'proj_01' }),
+  resetAll: () => {
+    set({
+      projects: SEED_PROJECTS,
+      disputes: SEED_DISPUTES,
+      reports: [],
+      blockedUserIds: [],
+      activeProjectId: 'proj_01',
+    });
+    api.seedDatabase(true).catch(() => {});
+  },
 }));
 
 // ---------------- DEMO SCENARIO CONTROL STORE ----------------

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { useProjectStore } from './store';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
 import { Footer } from './components/layout/Footer';
@@ -63,6 +64,12 @@ const DashboardLayout: React.FC = () => (
 );
 
 export function App() {
+  const fetchInitialData = useProjectStore((state) => state.fetchInitialData);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
+
   return (
     <Router>
       <Routes>
