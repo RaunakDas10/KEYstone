@@ -10,8 +10,10 @@ import {
   Clock,
   Send,
   GitBranch,
+  Flag,
 } from 'lucide-react';
 import { useProjectStore, useAuthStore, useMessageStore } from '../../store';
+import { SEED_USERS } from '../../mock/seedData';
 import { FundLifecycleVisualizer } from '../../components/common/FundLifecycleVisualizer';
 import { TimelineVisualizer } from '../../components/common/TimelineVisualizer';
 import { FundStateBadge } from '../../components/common/FundStateBadge';
@@ -21,7 +23,7 @@ import { Badge } from '../../components/ui/Badge';
 
 export const FreelancerProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { projects, submitCheckpoint } = useProjectStore();
+  const { projects, submitCheckpoint, reportUser } = useProjectStore();
   const { currentUser } = useAuthStore();
   const { messages, sendMessage } = useMessageStore();
 
@@ -34,6 +36,8 @@ export const FreelancerProjectDetailPage: React.FC = () => {
   const [description, setDescription] = useState('Completed Milestone working prototype with responsive dark mode and Zustand state wiring.');
   const [notes, setNotes] = useState('Please review the live demo URL above. All interactive features are functional.');
   const [chatInput, setChatInput] = useState('');
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   const projectMessages = messages.filter((m) => m.projectId === project.id);
 
@@ -56,6 +60,12 @@ export const FreelancerProjectDetailPage: React.FC = () => {
     if (!chatInput.trim()) return;
     sendMessage(project.id, chatInput, currentUser);
     setChatInput('');
+  };
+  const handleReport = (e: React.FormEvent) => {
+    e.preventDefault();
+    reportUser(SEED_USERS.client, project.id, reportReason, reportReason, currentUser);
+    setReportReason('');
+    setIsReportOpen(false);
   };
 
   return (
@@ -82,6 +92,7 @@ export const FreelancerProjectDetailPage: React.FC = () => {
               ₹{project.budget.toLocaleString()} Locked in Vault
             </span>
           </div>
+          <Button variant="outline" size="sm" onClick={() => setIsReportOpen(true)} leftIcon={<Flag className="w-3.5 h-3.5" />}>Report client</Button>
         </div>
       </div>
 
@@ -203,6 +214,9 @@ export const FreelancerProjectDetailPage: React.FC = () => {
       </div>
 
       {/* DEMO SUBMISSION MODAL */}
+      <Modal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} title="Report client" subtitle="Send a conduct or safety report to platform governance.">
+        <form onSubmit={handleReport} className="space-y-4 text-xs"><textarea required rows={4} value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe the issue..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white" /><div className="flex justify-end"><Button type="submit" variant="danger">Submit report</Button></div></form>
+      </Modal>
       <Modal
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}

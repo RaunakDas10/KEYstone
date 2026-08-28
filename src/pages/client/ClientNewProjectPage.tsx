@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle2, Lock } from 'lucide-react';
 import { useAuthStore, useProjectStore } from '../../store';
+import { SEED_FREELANCERS } from '../../mock/seedData';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 
@@ -17,6 +18,8 @@ export const ClientNewProjectPage: React.FC = () => {
   const [skillsInput, setSkillsInput] = useState('React, TypeScript, Tailwind CSS');
   const [budget, setBudget] = useState(50000);
   const [deadline, setDeadline] = useState('2026-10-15');
+  const [access, setAccess] = useState<'invited' | 'open'>('open');
+  const [selectedFreelancerId, setSelectedFreelancerId] = useState(SEED_FREELANCERS[0].id);
 
   const [milestones, setMilestones] = useState([
     { title: 'Milestone 1: Core Working Demo & Architecture', amount: 25000, deadline: '2026-09-15', criteria: 'Interactive prototype link & repo' },
@@ -50,6 +53,8 @@ export const ClientNewProjectPage: React.FC = () => {
         skills: skillsInput.split(',').map((s) => s.trim()),
         budget: Number(budget),
         deadline,
+        access,
+        ...(access === 'invited' ? (() => { const freelancer = SEED_FREELANCERS.find((item) => item.id === selectedFreelancerId) || SEED_FREELANCERS[0]; return { freelancerId: freelancer.id, freelancerName: freelancer.name, freelancerAvatar: freelancer.avatar, freelancerTitle: freelancer.title }; })() : {}),
         clientId: currentUser.id,
         clientName: currentUser.name,
         clientAvatar: currentUser.avatar,
@@ -117,6 +122,15 @@ export const ClientNewProjectPage: React.FC = () => {
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">Freelancer access</label>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <button type="button" onClick={() => setAccess('invited')} className={`text-left p-3 rounded-xl border ${access === 'invited' ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-slate-950'}`}><strong className="block text-sm text-white">Choose a freelancer</strong><span className="text-[11px] text-slate-400">Select a verified freelancer for this contract.</span></button>
+                <button type="button" onClick={() => setAccess('open')} className={`text-left p-3 rounded-xl border ${access === 'open' ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-950'}`}><strong className="block text-sm text-white">Open to all</strong><span className="text-[11px] text-slate-400">Publish the brief for verified talent.</span></button>
+              </div>
+              {access === 'invited' && <select value={selectedFreelancerId} onChange={(e) => setSelectedFreelancerId(e.target.value)} className="w-full mt-3 bg-slate-950 border border-slate-800 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-blue-500">{SEED_FREELANCERS.map((freelancer) => <option key={freelancer.id} value={freelancer.id}>{freelancer.name} - {freelancer.title}</option>)}</select>}
             </div>
 
             <div>
@@ -278,7 +292,7 @@ export const ClientNewProjectPage: React.FC = () => {
             </div>
             <div className="flex justify-between border-b border-slate-800 pb-3">
               <span className="text-slate-400">Assigned Freelancer:</span>
-              <span className="font-bold text-white">Ananya Roy (Verified Full-Stack Engineer)</span>
+              <span className="font-bold text-white">{access === 'invited' ? `${SEED_FREELANCERS.find((item) => item.id === selectedFreelancerId)?.name} (Selected freelancer)` : 'Open to verified freelancers'}</span>
             </div>
           </div>
 

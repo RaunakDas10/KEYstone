@@ -3,6 +3,8 @@ import { ShieldCheck, Lock, CheckCircle2, RefreshCw, Clock, ArrowRight } from 'l
 import { FundLifecycleVisualizer } from '../../components/common/FundLifecycleVisualizer';
 import { Button } from '../../components/ui/Button';
 import { Link } from 'react-router-dom';
+import { TrustScoreCard } from '../../components/common/TrustScoreCard';
+import { SEED_USERS } from '../../mock/seedData';
 
 export const HowItWorksPage: React.FC = () => {
   return (
@@ -20,6 +22,11 @@ export const HowItWorksPage: React.FC = () => {
             Eliminating payment anxiety for freelancers and project risk for clients through an automated 3-State fund lifecycle.
           </p>
         </div>
+
+        <section className="space-y-4">
+          <div><span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Trust scoring</span><h2 className="text-2xl font-black text-white mt-1">Proof becomes reputation</h2><p className="text-sm text-slate-400 mt-2 max-w-2xl">Each score is calculated from delivery timing, completed contracts, verified checkpoint submissions, and dispute rate. Payment activity and audit events keep the score explainable.</p></div>
+          <TrustScoreCard user={SEED_USERS.freelancer} />
+        </section>
 
         {/* Visualizer Showcase */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">

@@ -47,6 +47,8 @@ export const Sidebar: React.FC = () => {
     { to: '/admin/disputes', label: 'Disputes Station', icon: ShieldAlert },
     { to: '/admin/funds', label: 'Vault Control', icon: Shield },
     { to: '/admin/ledger', label: 'Full Ledger', icon: History },
+    { to: '/admin/messages', label: 'Project Chat', icon: MessageSquare },
+    { to: '/admin/reports', label: 'Reports', icon: ShieldAlert },
     { to: '/admin/settings', label: 'Platform Config', icon: Settings },
   ];
 

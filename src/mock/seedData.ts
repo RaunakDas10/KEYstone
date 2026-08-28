@@ -43,6 +43,24 @@ export const SEED_USERS: Record<string, User> = {
   },
 };
 
+export const SEED_FREELANCERS: User[] = [
+  SEED_USERS.freelancer,
+  {
+    id: 'user_freelancer_2', name: 'Rohan Mehta', email: 'rohan@demo.com', role: 'freelancer',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
+    title: 'Senior Mobile App Engineer & React Native Specialist', bio: 'Architected 25+ fintech & healthcare mobile apps.',
+    skills: ['React Native', 'TypeScript', 'GraphQL', 'iOS', 'Android', 'Node.js'], trustScore: 96, onTimeRate: 95,
+    completionRate: 97, disputeRate: 0, projectsCompleted: 34, hourlyRate: 2200, joinedDate: '2024-10-12', verified: true,
+  },
+  {
+    id: 'user_freelancer_3', name: 'Kavya Nair', email: 'kavya@demo.com', role: 'freelancer',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+    title: 'AI Systems Architect & Data Engineer', bio: 'Specializing in LLM fine-tuning, RAG pipelines, and scalable Python services.',
+    skills: ['Python', 'FastAPI', 'PyTorch', 'OpenAI API', 'PostgreSQL', 'Docker'], trustScore: 99, onTimeRate: 98,
+    completionRate: 100, disputeRate: 0, projectsCompleted: 51, hourlyRate: 3000, joinedDate: '2024-05-01', verified: true,
+  },
+];
+
 export const SEED_PROJECTS: Project[] = [
   {
     id: 'proj_01',

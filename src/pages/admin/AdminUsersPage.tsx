@@ -1,10 +1,14 @@
 import React from 'react';
-import { Users, Award, ShieldCheck } from 'lucide-react';
+import { Users, ShieldCheck, MessageSquare, Mail } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { SEED_USERS } from '../../mock/seedData';
+import { useProjectStore } from '../../store';
+import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 
 export const AdminUsersPage: React.FC = () => {
   const userList = Object.values(SEED_USERS);
+  const { blockedUserIds, toggleUserBlocked } = useProjectStore();
 
   return (
     <div className="space-y-8">
@@ -26,6 +30,7 @@ export const AdminUsersPage: React.FC = () => {
                 <th className="p-4">Trust Score</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Joined Date</th>
+                <th className="p-4">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -52,6 +57,17 @@ export const AdminUsersPage: React.FC = () => {
                     </Badge>
                   </td>
                   <td className="p-4 text-slate-400 font-mono">{u.joinedDate}</td>
+                  <td className="p-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Link to={`/admin/messages?userId=${u.id}`}>
+                        <Button variant="outline" size="sm" leftIcon={<MessageSquare className="w-3.5 h-3.5" />}>Chat</Button>
+                      </Link>
+                      <a href={`mailto:${u.email}?subject=KEYStone%20Platform%20Message`}>
+                        <Button variant="secondary" size="sm" leftIcon={<Mail className="w-3.5 h-3.5" />}>Email</Button>
+                      </a>
+                      <Button variant={blockedUserIds.includes(u.id) ? 'emerald' : 'danger'} size="sm" onClick={() => toggleUserBlocked(u.id)}>{blockedUserIds.includes(u.id) ? 'Unblock' : 'Block user'}</Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

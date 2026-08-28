@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Wallet, Banknote, ShieldCheck, CheckCircle2, ArrowDownLeft, ArrowUpRight, Lock } from 'lucide-react';
-import { useProjectStore, useLedgerStore } from '../../store';
+import { useProjectStore, useLedgerStore, useAuthStore } from '../../store';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { LedgerTable } from '../../components/common/LedgerTable';
@@ -8,11 +8,13 @@ import { LedgerTable } from '../../components/common/LedgerTable';
 export const FreelancerIncomePage: React.FC = () => {
   const { projects } = useProjectStore();
   const { entries } = useLedgerStore();
+  const { currentUser } = useAuthStore();
+  const { withdrawPayout } = useProjectStore();
 
   const withdrawable = projects.reduce((acc, p) => acc + p.amountWithdrawable, 0);
   const custody = projects.reduce((acc, p) => acc + p.amountInCustody, 0);
   const frozen = projects.reduce((acc, p) => acc + p.amountFrozen, 0);
-  const totalEarned = withdrawable + 50000; // includes past payouts
+  const totalEarned = projects.reduce((acc, p) => acc + p.amountPaid + p.amountWithdrawable + p.amountFrozen, 0);
 
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState(withdrawable || 50000);
@@ -21,6 +23,7 @@ export const FreelancerIncomePage: React.FC = () => {
 
   const handleExecuteWithdrawal = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!withdrawPayout(withdrawAmount, currentUser, payoutMethod)) return;
     setIsSuccess(true);
     setTimeout(() => {
       setIsSuccess(false);
@@ -43,7 +46,7 @@ export const FreelancerIncomePage: React.FC = () => {
           onClick={() => setIsWithdrawModalOpen(true)}
           leftIcon={<Banknote className="w-5 h-5" />}
         >
-          Withdraw ₹{withdrawable > 0 ? withdrawable.toLocaleString() : '50,000'}
+          Withdraw ₹{withdrawable.toLocaleString()}
         </Button>
       </div>
 
@@ -51,7 +54,7 @@ export const FreelancerIncomePage: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-5 shadow-xl glow-emerald">
           <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">Withdrawable Balance</span>
-          <span className="text-2xl font-black text-white font-mono mt-1 block">₹{withdrawable > 0 ? withdrawable.toLocaleString() : '50,000'}</span>
+          <span className="text-2xl font-black text-white font-mono mt-1 block">₹{withdrawable.toLocaleString()}</span>
           <span className="text-[10px] text-emerald-300 mt-1 block">Unlocked & Ready</span>
         </div>
 
@@ -123,7 +126,7 @@ export const FreelancerIncomePage: React.FC = () => {
                 type="number"
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(Number(e.target.value))}
-                max={withdrawable > 0 ? withdrawable : 50000}
+                max={withdrawable}
                 required
                 className="w-full bg-slate-950 border border-slate-800 text-white text-base font-bold font-mono rounded-xl p-3 focus:outline-none focus:border-blue-500"
               />

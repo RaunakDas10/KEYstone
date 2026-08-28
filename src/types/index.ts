@@ -3,6 +3,7 @@ export type UserRole = 'client' | 'freelancer' | 'admin';
 export type FundState = 'IN_CUSTODY' | 'FROZEN' | 'WITHDRAWABLE' | 'REFUNDED' | 'PAID' | 'DISPUTED';
 
 export type ProjectStatus = 'draft' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled';
+export type ProjectAccess = 'invited' | 'open';
 
 export type CheckpointStatus = 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'disputed';
 
@@ -69,6 +70,7 @@ export interface Project {
   freelancerName?: string;
   freelancerAvatar?: string;
   freelancerTitle?: string;
+  access?: ProjectAccess;
   status: ProjectStatus;
   fundState: FundState;
   amountInCustody: number;
@@ -84,6 +86,20 @@ export interface Project {
   inactivityDays: number;
   autoUnlockEligible: boolean;
   disputeId?: string;
+}
+
+export interface Report {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  reporterRole: UserRole;
+  targetId: string;
+  targetName: string;
+  projectId?: string;
+  reason: string;
+  description: string;
+  createdAt: string;
+  status: 'open' | 'reviewed' | 'resolved';
 }
 
 export type LedgerEventType = 

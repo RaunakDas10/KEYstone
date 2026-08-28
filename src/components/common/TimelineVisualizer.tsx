@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Clock, ShieldCheck, Lock, Banknote } from 'lucide-react';
 import { Project } from '../../types';
+import { useLedgerStore } from '../../store';
 
 export interface TimelineVisualizerProps {
   project: Project;
@@ -8,7 +9,15 @@ export interface TimelineVisualizerProps {
 }
 
 export const TimelineVisualizer: React.FC<TimelineVisualizerProps> = ({ project, className = '' }) => {
+  const ledgerEntries = useLedgerStore((state) => state.entries).filter((entry) => entry.projectId === project.id);
   const events = [
+    ...ledgerEntries.map((entry) => ({
+      title: entry.eventType.replaceAll('_', ' '),
+      desc: entry.notes || `${entry.actorName} recorded ${entry.eventType.toLowerCase()}.`,
+      timestamp: new Date(entry.timestamp).toLocaleString(),
+      status: 'completed',
+      icon: Banknote,
+    })),
     {
       title: 'Project Created',
       desc: `Created by ${project.clientName}`,

@@ -11,8 +11,10 @@ import {
   FileCheck,
   Clock,
   GitBranch,
+  Flag,
 } from 'lucide-react';
 import { useProjectStore, useAuthStore } from '../../store';
+import { SEED_USERS } from '../../mock/seedData';
 import { FundLifecycleVisualizer } from '../../components/common/FundLifecycleVisualizer';
 import { TimelineVisualizer } from '../../components/common/TimelineVisualizer';
 import { FundStateBadge } from '../../components/common/FundStateBadge';
@@ -22,7 +24,7 @@ import { Badge } from '../../components/ui/Badge';
 
 export const ClientProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute } = useProjectStore();
+  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser } = useProjectStore();
   const { currentUser } = useAuthStore();
 
   const project = projects.find((p) => p.id === id) || projects[0];
@@ -32,6 +34,8 @@ export const ClientProjectDetailPage: React.FC = () => {
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDesc, setDisputeDesc] = useState('');
+  const [reportReason, setReportReason] = useState('');
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   const currentMilestone = project.milestones[project.currentMilestoneIndex] || project.milestones[0];
   const submission = project.submissions[0];
@@ -50,6 +54,12 @@ export const ClientProjectDetailPage: React.FC = () => {
     e.preventDefault();
     raiseDispute(project.id, disputeReason, disputeDesc, currentUser);
     setIsDisputeModalOpen(false);
+  };
+  const handleReport = (e: React.FormEvent) => {
+    e.preventDefault();
+    reportUser(SEED_USERS.freelancer, project.id, reportReason, reportReason, currentUser);
+    setIsReportOpen(false);
+    setReportReason('');
   };
 
   const totalAmount = currentMilestone?.amount || project.budget;
@@ -158,6 +168,7 @@ export const ClientProjectDetailPage: React.FC = () => {
                 <Button variant="danger" size="sm" onClick={() => setIsDisputeModalOpen(true)} leftIcon={<AlertTriangle className="w-3.5 h-3.5" />}>
                   Raise Dispute
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => setIsReportOpen(true)} leftIcon={<Flag className="w-3.5 h-3.5" />}>Report freelancer</Button>
               </div>
             )}
           </div>
@@ -174,6 +185,15 @@ export const ClientProjectDetailPage: React.FC = () => {
       <TimelineVisualizer project={project} />
 
       {/* APPROVE CONFIRMATION MODAL */}
+      <Modal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        title="Report freelancer"
+        subtitle="Send a conduct or safety report to platform governance."
+      >
+        <form onSubmit={handleReport} className="space-y-4 text-xs"><textarea required rows={4} value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe the issue..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white" /><div className="flex justify-end"><Button type="submit" variant="danger">Submit report</Button></div></form>
+      </Modal>
+
       <Modal
         isOpen={isApproveModalOpen}
         onClose={() => setIsApproveModalOpen(false)}

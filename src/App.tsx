@@ -30,6 +30,10 @@ import { AdminDisputesPage } from './pages/admin/AdminDisputesPage';
 import { AdminFundsPage } from './pages/admin/AdminFundsPage';
 import { AdminLedgerPage } from './pages/admin/AdminLedgerPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { AdminReportsPage } from './pages/admin/AdminReportsPage';
+import { ChatPage } from './pages/shared/ChatPage';
+import { NotificationsPage } from './pages/shared/NotificationsPage';
+import { StandInPage } from './pages/public/StandInPage';
 
 const PublicLayout: React.FC = () => (
   <div className="min-h-screen bg-slate-950 flex flex-col justify-between text-slate-100">
@@ -69,6 +73,7 @@ export function App() {
           <Route path="/freelancers/:id" element={<FreelancerProfilePage />} />
           <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/security" element={<SecurityPage />} />
+          <Route path="/standin" element={<StandInPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<LoginPage />} />
@@ -81,9 +86,9 @@ export function App() {
             <Route path="/client/projects" element={<ClientDashboard />} />
             <Route path="/client/projects/new" element={<ClientNewProjectPage />} />
             <Route path="/client/projects/:id" element={<ClientProjectDetailPage />} />
-            <Route path="/client/messages" element={<ClientProjectDetailPage />} />
+            <Route path="/client/messages" element={<ChatPage />} />
             <Route path="/client/transactions" element={<AdminLedgerPage />} />
-            <Route path="/client/notifications" element={<ClientDashboard />} />
+            <Route path="/client/notifications" element={<NotificationsPage />} />
             <Route path="/client/settings" element={<ClientDashboard />} />
           </Route>
         </Route>
@@ -97,8 +102,8 @@ export function App() {
             <Route path="/freelancer/income" element={<FreelancerIncomePage />} />
             <Route path="/freelancer/transactions" element={<FreelancerIncomePage />} />
             <Route path="/freelancer/portfolio" element={<FreelancerProfilePage />} />
-            <Route path="/freelancer/messages" element={<FreelancerProjectDetailPage />} />
-            <Route path="/freelancer/notifications" element={<FreelancerDashboard />} />
+            <Route path="/freelancer/messages" element={<ChatPage />} />
+            <Route path="/freelancer/notifications" element={<NotificationsPage />} />
             <Route path="/freelancer/settings" element={<FreelancerDashboard />} />
           </Route>
         </Route>
@@ -112,6 +117,9 @@ export function App() {
             <Route path="/admin/disputes" element={<AdminDisputesPage />} />
             <Route path="/admin/funds" element={<AdminFundsPage />} />
             <Route path="/admin/ledger" element={<AdminLedgerPage />} />
+            <Route path="/admin/messages" element={<ChatPage />} />
+            <Route path="/admin/notifications" element={<NotificationsPage />} />
+            <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/settings" element={<AdminDashboard />} />
           </Route>
         </Route>

@@ -12,7 +12,7 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => (n.userId === currentUser.id || n.userId === 'all') && !n.read).length;
 
   const handleLogout = () => {
     logout();

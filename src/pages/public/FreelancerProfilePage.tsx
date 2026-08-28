@@ -6,16 +6,23 @@ import { TrustScoreCard } from '../../components/common/TrustScoreCard';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
+import { useAuthStore, useNotificationStore, useProjectStore } from '../../store';
 
 export const FreelancerProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const { currentUser } = useAuthStore();
+  const { projects } = useProjectStore();
+  const { addNotification } = useNotificationStore();
+  const [selectedProjectId, setSelectedProjectId] = useState('');
 
   const freelancer = SEED_USERS.freelancer; // default to Ananya Roy for rich view
 
   const handleSendInvite = (e: React.FormEvent) => {
     e.preventDefault();
+    const selectedProject = projects.find((project) => project.id === selectedProjectId) || projects[0];
+    if (selectedProject) addNotification({ userId: freelancer.id, type: 'project', title: 'New project invitation', description: `${currentUser.name} invited you to ${selectedProject.title}.`, link: `/freelancer/projects/${selectedProject.id}` });
     setInviteSuccess(true);
     setTimeout(() => {
       setInviteSuccess(false);
@@ -160,9 +167,9 @@ export const FreelancerProfilePage: React.FC = () => {
           <form onSubmit={handleSendInvite} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Select Project</label>
-              <select className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500">
-                <option value="proj_01">E-Commerce Platform Redesign (₹80,000)</option>
-                <option value="proj_04">Mobile Banking & Escrow Wallet UI (₹1,20,000)</option>
+              <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="">Select a project</option>
+                {projects.filter((project) => project.clientId === currentUser.id || project.access === 'open').map((project) => <option key={project.id} value={project.id}>{project.title} (₹{project.budget.toLocaleString()})</option>)}
               </select>
             </div>
 
