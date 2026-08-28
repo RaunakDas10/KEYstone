@@ -1,11 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, ShieldCheck, Lock, CheckCircle2, Clock, MessageSquare, ArrowRight } from 'lucide-react';
+import { Plus, Search, ShieldCheck, Lock, CheckCircle2, Clock, MessageSquare, ArrowRight } from 'lucide-react';
 import { useAuthStore, useProjectStore } from '../../store';
 import { Button } from '../../components/ui/Button';
 import { FundStateBadge } from '../../components/common/FundStateBadge';
 import { FundLifecycleVisualizer } from '../../components/common/FundLifecycleVisualizer';
-import { AIProjectHealthBadge } from '../../components/ai/AIProjectHealthBadge';
 
 export const ClientDashboard: React.FC = () => {
   const { currentUser } = useAuthStore();
@@ -99,12 +98,7 @@ export const ClientDashboard: React.FC = () => {
                   <h4 className="text-lg font-bold text-white mt-0.5">{project.title}</h4>
                   <p className="text-xs text-slate-400 mt-1">Freelancer: <strong className="text-white">{project.freelancerName}</strong></p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <FundStateBadge state={project.fundState} />
-                  {project.aiAnalysis && (
-                    <AIProjectHealthBadge analysis={project.aiAnalysis as any} compact />
-                  )}
-                </div>
+                <FundStateBadge state={project.fundState} />
               </div>
 
               <div className="grid grid-cols-2 gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">

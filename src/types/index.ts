@@ -34,7 +34,6 @@ export interface Milestone {
   amount: number;
   deadline: string;
   acceptanceCriteria: string[];
-  deliverables?: string[];  // AI-generated; used by future AI Checkpoint Analyzer
   status: 'pending' | 'in_progress' | 'submitted' | 'approved' | 'failed';
   fundState: FundState;
 }
@@ -87,19 +86,6 @@ export interface Project {
   inactivityDays: number;
   autoUnlockEligible: boolean;
   disputeId?: string;
-  // AI Trust Engine fields — advisory only, never used for fund decisions
-  aiAnalysis?: {
-    riskScore: number;
-    riskLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
-    confidence: number;
-    analyzedAt: string;
-    analysisVersion: string;
-    risks: { id: string; title: string; severity: string; description: string; recommendation: string }[];
-    missingRequirements: { id: string; area: string; resolved: boolean }[];
-    recommendations: string[];
-    issueCount: number;
-    overallHealth: 'ready' | 'needs_attention' | 'critical';
-  };
 }
 
 export interface Report {
