@@ -23,7 +23,6 @@ export const Sidebar: React.FC = () => {
   const clientLinks = [
     { to: '/client/dashboard', label: 'Overview', icon: LayoutDashboard },
     { to: '/client/projects', label: 'Projects', icon: Briefcase },
-    { to: '/marketplace', label: 'Marketplace', icon: Store },
     { to: '/client/messages', label: 'Messages', icon: MessageSquare },
     { to: '/client/transactions', label: 'Transactions', icon: Receipt },
     { to: '/client/settings', label: 'Settings', icon: Settings },
@@ -32,7 +31,6 @@ export const Sidebar: React.FC = () => {
   const freelancerLinks = [
     { to: '/freelancer/dashboard', label: 'Overview', icon: LayoutDashboard },
     { to: '/freelancer/projects', label: 'My Projects', icon: Briefcase },
-    { to: '/marketplace', label: 'Find Work', icon: Store },
     { to: '/freelancer/income', label: 'Income', icon: Wallet },
     { to: '/freelancer/transactions', label: 'Ledger', icon: Receipt },
     { to: '/freelancer/portfolio', label: 'Portfolio', icon: FolderGit2 },

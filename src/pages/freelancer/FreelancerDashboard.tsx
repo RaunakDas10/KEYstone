@@ -10,10 +10,11 @@ export const FreelancerDashboard: React.FC = () => {
   const { currentUser } = useAuthStore();
   const { projects } = useProjectStore();
 
-  const activeProjects = projects.filter((p) => p.status === 'active');
-  const withdrawableTotal = projects.reduce((acc, p) => acc + p.amountWithdrawable, 0);
-  const custodyTotal = projects.reduce((acc, p) => acc + p.amountInCustody, 0);
-  const frozenTotal = projects.reduce((acc, p) => acc + p.amountFrozen, 0);
+  const visibleProjects = projects.filter((p) => p.freelancerId === currentUser.id || p.access === 'open');
+  const activeProjects = visibleProjects.filter((p) => p.status === 'active');
+  const withdrawableTotal = visibleProjects.reduce((acc, p) => acc + p.amountWithdrawable, 0);
+  const custodyTotal = visibleProjects.reduce((acc, p) => acc + p.amountInCustody, 0);
+  const frozenTotal = visibleProjects.reduce((acc, p) => acc + p.amountFrozen, 0);
 
   return (
     <div className="space-y-8">
@@ -73,7 +74,7 @@ export const FreelancerDashboard: React.FC = () => {
         <h3 className="text-lg font-bold text-white">Active Payment-Protected Projects</h3>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {projects.map((project) => (
+          {visibleProjects.map((project) => (
             <div key={project.id} className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex items-start justify-between">
                 <div>

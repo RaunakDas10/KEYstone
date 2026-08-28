@@ -12,6 +12,7 @@ import {
   Clock,
   GitBranch,
   Flag,
+  Star,
 } from 'lucide-react';
 import { useProjectStore, useAuthStore } from '../../store';
 import { SEED_USERS } from '../../mock/seedData';
@@ -24,7 +25,7 @@ import { Badge } from '../../components/ui/Badge';
 
 export const ClientProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser } = useProjectStore();
+  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser, rateFreelancer } = useProjectStore();
   const { currentUser } = useAuthStore();
 
   const project = projects.find((p) => p.id === id) || projects[0];
@@ -36,6 +37,9 @@ export const ClientProjectDetailPage: React.FC = () => {
   const [disputeDesc, setDisputeDesc] = useState('');
   const [reportReason, setReportReason] = useState('');
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [review, setReview] = useState('');
 
   const currentMilestone = project.milestones[project.currentMilestoneIndex] || project.milestones[0];
   const submission = project.submissions[0];
@@ -60,6 +64,11 @@ export const ClientProjectDetailPage: React.FC = () => {
     reportUser(SEED_USERS.freelancer, project.id, reportReason, reportReason, currentUser);
     setIsReportOpen(false);
     setReportReason('');
+  };
+  const handleRating = (e: React.FormEvent) => {
+    e.preventDefault();
+    rateFreelancer(project.id, rating, review, currentUser);
+    setIsRatingOpen(false);
   };
 
   const totalAmount = currentMilestone?.amount || project.budget;
@@ -184,7 +193,18 @@ export const ClientProjectDetailPage: React.FC = () => {
       {/* Audit Timeline */}
       <TimelineVisualizer project={project} />
 
+      {project.status === 'completed' && currentUser.role === 'client' && !project.freelancerRating && <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><h3 className="text-base font-bold text-white">How was your experience?</h3><p className="text-xs text-slate-400 mt-1">Rate {project.freelancerName} after completing this project.</p></div><Button variant="primary" size="sm" leftIcon={<Star className="w-4 h-4" />} onClick={() => setIsRatingOpen(true)}>Rate freelancer</Button></div>}
+
       {/* APPROVE CONFIRMATION MODAL */}
+      <Modal
+        isOpen={isRatingOpen}
+        onClose={() => setIsRatingOpen(false)}
+        title="Rate completed project"
+        subtitle={`Share feedback for ${project.freelancerName}.`}
+      >
+        <form onSubmit={handleRating} className="space-y-4 text-xs"><div><label className="block font-semibold text-slate-300 mb-1">Rating</label><select value={rating} onChange={(event) => setRating(Number(event.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white">{[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} / 5 stars</option>)}</select></div><div><label className="block font-semibold text-slate-300 mb-1">Review</label><textarea required rows={4} value={review} onChange={(event) => setReview(event.target.value)} placeholder="What did the freelancer do well?" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white" /></div><div className="flex justify-end"><Button type="submit" variant="primary">Publish rating</Button></div></form>
+      </Modal>
+
       <Modal
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}

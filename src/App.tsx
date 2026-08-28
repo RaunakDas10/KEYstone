@@ -68,7 +68,8 @@ export function App() {
       <Routes>
         {/* Public Landing & Marketing Pages */}
         <Route element={<PublicLayout />}>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<StandInPage />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/freelancers/:id" element={<FreelancerProfilePage />} />
           <Route path="/how-it-works" element={<HowItWorksPage />} />

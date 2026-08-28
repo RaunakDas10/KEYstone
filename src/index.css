@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+[aria-label='KEYStone resources'] {
+  display: none;
+}
+
 @layer base {
   :root {
     --color-bg: #0b0f19;

@@ -11,6 +11,8 @@ export const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const guestOnlyView = ['/standin', '/register', '/login'].includes(location.pathname);
+  const showAccount = isAuthenticated && !guestOnlyView;
 
   const unreadCount = notifications.filter((n) => (n.userId === currentUser.id || n.userId === 'all') && !n.read).length;
 
@@ -45,21 +47,15 @@ export const Navbar: React.FC = () => {
           </Link>
 
           {/* Public Nav Links */}
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
-            <Link to="/marketplace" className="hover:text-blue-400 transition-colors">
-              Marketplace
-            </Link>
-            <Link to="/how-it-works" className="hover:text-blue-400 transition-colors">
-              How It Works
-            </Link>
-            <Link to="/security" className="hover:text-blue-400 transition-colors">
-              Security
-            </Link>
-          </div>
+          {!showAccount && <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
+            <Link to="/marketplace" className="hover:text-blue-400 transition-colors">Marketplace</Link>
+            <Link to="/security" className="hover:text-blue-400 transition-colors">Security</Link>
+            <Link to="/how-it-works" className="hover:text-blue-400 transition-colors">How It Works</Link>
+          </div>}
 
           {/* User Actions */}
           <div className="hidden md:flex items-center gap-4">
-            {isAuthenticated ? (
+            {showAccount ? (
               <>
                 <Link
                   to={getDashboardRoute()}
@@ -155,29 +151,13 @@ export const Navbar: React.FC = () => {
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-slate-950 border-b border-slate-800 p-4 space-y-3">
-          <Link
-            to="/marketplace"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-300 hover:text-white"
-          >
-            Marketplace
-          </Link>
-          <Link
-            to="/how-it-works"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-300 hover:text-white"
-          >
-            How It Works
-          </Link>
-          <Link
-            to="/security"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="block text-sm font-medium text-slate-300 hover:text-white"
-          >
-            Security
-          </Link>
+          {!showAccount && <>
+            <Link to="/marketplace" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm font-medium text-slate-300 hover:text-white">Marketplace</Link>
+            <Link to="/security" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm font-medium text-slate-300 hover:text-white">Security</Link>
+            <Link to="/how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm font-medium text-slate-300 hover:text-white">How It Works</Link>
+          </>}
 
-          {isAuthenticated ? (
+          {showAccount ? (
             <div className="pt-3 border-t border-slate-800 space-y-2">
               <Link
                 to={getDashboardRoute()}

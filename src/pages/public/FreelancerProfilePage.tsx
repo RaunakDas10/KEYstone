@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ShieldCheck, Award, Clock, Star, ExternalLink, CheckCircle2, ArrowRight, FolderGit2 } from 'lucide-react';
+import { ShieldCheck, Award, Clock, Star, ExternalLink, CheckCircle2, ArrowRight, FolderGit2, MessageSquare } from 'lucide-react';
 import { SEED_USERS, SEED_PORTFOLIO } from '../../mock/seedData';
 import { TrustScoreCard } from '../../components/common/TrustScoreCard';
 import { Button } from '../../components/ui/Button';
@@ -12,7 +12,7 @@ export const FreelancerProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
-  const { currentUser } = useAuthStore();
+  const { currentUser, isAuthenticated } = useAuthStore();
   const { projects } = useProjectStore();
   const { addNotification } = useNotificationStore();
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -57,14 +57,7 @@ export const FreelancerProfilePage: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-3 w-full md:w-auto">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => setIsInviteModalOpen(true)}
-                rightIcon={<ArrowRight className="w-4 h-4" />}
-              >
-                Invite to Project
-              </Button>
+              {isAuthenticated && currentUser.role === 'client' && <><Button variant="primary" size="lg" onClick={() => setIsInviteModalOpen(true)} rightIcon={<ArrowRight className="w-4 h-4" />}>Invite to Project</Button><Link to="/client/messages"><Button variant="outline" size="md" leftIcon={<MessageSquare className="w-4 h-4" />}>Chat about a project</Button></Link></>}
               <div className="text-center text-xs font-mono text-slate-400">
                 Rate: <strong className="text-white">₹{freelancer.hourlyRate?.toLocaleString()}/hr</strong>
               </div>

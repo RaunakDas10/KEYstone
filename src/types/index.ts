@@ -86,6 +86,8 @@ export interface Project {
   inactivityDays: number;
   autoUnlockEligible: boolean;
   disputeId?: string;
+  freelancerRating?: number;
+  freelancerReview?: string;
 }
 
 export interface Report {

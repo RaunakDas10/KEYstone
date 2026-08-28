@@ -138,6 +138,8 @@ interface ProjectState {
   withdrawPayout: (amount: number, user: User, method: string) => boolean;
   reportUser: (target: User, projectId: string | undefined, reason: string, description: string, reporter: User) => void;
   toggleUserBlocked: (userId: string) => void;
+  rateFreelancer: (projectId: string, rating: number, review: string, client: User) => void;
+  sendUserWarning: (target: User, reason: string) => void;
   resetAll: () => void;
 }
 
@@ -610,6 +612,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   toggleUserBlocked: (userId) => set((state) => ({ blockedUserIds: state.blockedUserIds.includes(userId) ? state.blockedUserIds.filter((id) => id !== userId) : [...state.blockedUserIds, userId] })),
+
+  rateFreelancer: (projectId, rating, review, client) => {
+    const project = get().projects.find((item) => item.id === projectId);
+    if (!project || project.clientId !== client.id || project.status !== 'completed' || !project.freelancerId) return;
+    set((state) => ({ projects: state.projects.map((item) => item.id === projectId ? { ...item, freelancerRating: rating, freelancerReview: review } : item) }));
+    useNotificationStore.getState().addNotification({ userId: project.freelancerId, type: 'project', title: 'New project rating', description: `${client.name} rated your completed project ${rating}/5.`, link: `/freelancer/projects/${projectId}` });
+  },
+
+  sendUserWarning: (target, reason) => {
+    useNotificationStore.getState().addNotification({ userId: target.id, type: 'system', title: 'Official platform warning', description: reason, link: '/freelancer/settings' });
+  },
 
   resetAll: () => set({ projects: SEED_PROJECTS, disputes: SEED_DISPUTES, reports: [], blockedUserIds: [], activeProjectId: 'proj_01' }),
 }));
