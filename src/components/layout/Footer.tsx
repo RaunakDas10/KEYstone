@@ -1,6 +1,7 @@
 import React from 'react';
-import { Shield, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import keystoneLogo from '../../assets/keystone-logo.jpg';
 
 export const Footer: React.FC = () => {
   return (
@@ -9,9 +10,7 @@ export const Footer: React.FC = () => {
         {/* Brand */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
+            <img src={keystoneLogo} alt="KEYStone logo" className="h-8 w-8 rounded-lg object-cover" />
             <span className="font-bold text-lg text-white">KEYStone</span>
           </div>
           <p className="text-xs leading-relaxed text-slate-400">

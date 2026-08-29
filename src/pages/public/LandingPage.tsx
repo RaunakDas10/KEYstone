@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, ShieldCheck, Quote, Plus, CheckCircle2, X, Sparkles } from 'lucide-react';
+import keystoneLogo from '../../assets/keystone-logo.jpg';
 
 const backgroundVideo =
   'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4';
@@ -159,10 +160,16 @@ export const LandingPage: React.FC = () => {
         >
           <Link
             to="/"
-            className="text-3xl tracking-tight text-[hsl(var(--foreground))]"
-            style={{ fontFamily: "'Instrument Serif', serif" }}
+            className="group flex items-center gap-3 text-3xl tracking-tight text-[hsl(var(--foreground))]"
           >
-            KEYStone<sup className="text-xs">®</sup>
+            <img
+              src={keystoneLogo}
+              alt="KEYStone logo"
+              className="h-11 w-11 rounded-xl object-cover shadow-lg shadow-cyan-500/20 transition-transform duration-300 group-hover:scale-105"
+            />
+            <span style={{ fontFamily: "'Instrument Serif', serif" }}>
+              KEYStone<sup className="text-xs">®</sup>
+            </span>
           </Link>
 
           <div className="hidden items-center gap-7 md:flex">

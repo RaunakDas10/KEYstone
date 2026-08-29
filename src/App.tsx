@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { MemoryRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useProjectStore } from './store';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';

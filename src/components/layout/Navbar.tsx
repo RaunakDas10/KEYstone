@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Bell, LogOut, ChevronDown, Menu, X, Home, UserRound } from 'lucide-react';
+import { Bell, LogOut, ChevronDown, Menu, X, Home, UserRound } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { Button } from '../ui/Button';
+import keystoneLogo from '../../assets/keystone-logo.jpg';
 
 export const Navbar: React.FC = () => {
   const { currentUser, isAuthenticated, logout } = useAuthStore();
@@ -41,9 +42,11 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo with micro-animation */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-              <Shield className="w-5 h-5 text-white transition-transform group-hover:scale-105" />
-            </div>
+            <img
+              src={keystoneLogo}
+              alt="KEYStone logo"
+              className="h-9 w-9 rounded-xl object-cover shadow-lg shadow-cyan-500/20 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+            />
             <div className="flex flex-col">
               <span className="font-extrabold text-xl tracking-tight text-white flex items-center gap-1 group-hover:text-blue-100 transition-colors">
                 KEY<span className="text-blue-400 group-hover:text-blue-300 transition-colors">Stone</span>

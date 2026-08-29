@@ -72,6 +72,7 @@ npm run dev:all
 |---|---|
 | `npm run dev` | Start the Vite frontend dev server |
 | `npm run server` | Start the Express backend server with MongoDB connection |
+| `npm run preview` | Preview the production frontend and start its local API server |
 | `npm run db:seed` | Seed MongoDB with initial users, demo projects, ledger entries, and messages |
 | `npm run build` | Compile TypeScript and build production frontend assets |
 
