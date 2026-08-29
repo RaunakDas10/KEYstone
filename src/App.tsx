@@ -97,6 +97,7 @@ export function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/marketplace" element={<MarketplacePage />} />
+          <Route path="/freelancers" element={<FreelancersDirectoryPage />} />
           <Route path="/freelancers/:id" element={<FreelancerProfilePage />} />
           <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/security" element={<SecurityPage />} />
