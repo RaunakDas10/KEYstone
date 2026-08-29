@@ -62,6 +62,18 @@ export interface CheckpointSubmission {
   reviewedAt?: string;
 }
 
+export interface TalentRecommendation {
+  freelancer: User;
+  matchReason: string;
+  matchScore: number;
+}
+
+export interface AITalentSearchResponse {
+  results: TalentRecommendation[];
+  summary: string;
+  aiUsed: boolean;
+}
+
 export interface FreelancerApplication {
   id: string;
   freelancerId: string;

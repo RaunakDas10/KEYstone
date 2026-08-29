@@ -33,6 +33,9 @@ Create a `.env` file in the root directory (or copy from `.env.example`):
 ```env
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/keystone
+GEMINI_API_KEY=your_server_only_gemini_key
+# Optional; defaults to gemini-2.5-flash
+GEMINI_FAST_MODEL=gemini-2.5-flash
 # Or use MongoDB Atlas:
 # MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/keystone?retryWrites=true&w=majority
 ```
@@ -71,3 +74,12 @@ npm run dev:all
 - `GET/POST /api/messages` - Project chat & system audit events
 - `GET/POST/PUT /api/notifications` - Notifications management
 - `POST /api/payouts/withdraw` - Freelancer earnings withdrawal
+- `POST /api/ai/talent-search` - Authenticated AI Mode freelancer recommendations
+
+---
+
+## AI Mode talent search
+
+On the client and freelancer dashboards, the **AI Mode** button turns talent search into a plain-language request (for example, "I need a mobile app but do not know the technology"). The React app calls `POST /api/ai/talent-search`; Gemini is called only by the Express server and the API key is never returned to the browser.
+
+Gemini ranks up to five freelancer profiles using relevant skills and KEYStone reliability signals. If `GEMINI_API_KEY` is absent or Gemini is unavailable, the endpoint returns a score-based skills and reliability ranking instead.

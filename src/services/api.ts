@@ -1,6 +1,7 @@
 import {
   User,
   UserRole,
+  AITalentSearchResponse,
   Project,
   Milestone,
   CheckpointSubmission,
@@ -46,6 +47,13 @@ export const api = {
     request<User>(`/auth/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
+    }),
+
+  // AI talent search (Gemini stays server-side)
+  findTalentWithAI: (query: string, requesterId: string, limit: number = 5) =>
+    request<AITalentSearchResponse>('/ai/talent-search', {
+      method: 'POST',
+      body: JSON.stringify({ query, requesterId, limit }),
     }),
 
   // Projects

@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Award, ArrowRight } from 'lucide-react';
+import { Search, Award, ArrowRight, Sparkles, LoaderCircle, X } from 'lucide-react';
 import { SEED_FREELANCERS } from '../../mock/seedData';
 import { Button } from '../../components/ui/Button';
+import { useAuthStore } from '../../store';
+import { api } from '../../services/api';
+import type { TalentRecommendation } from '../../types';
 
 export const FreelancersDirectoryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -11,11 +14,20 @@ export const FreelancersDirectoryPage: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [isAiMode, setIsAiMode] = useState(false);
+  const [aiResults, setAiResults] = useState<TalentRecommendation[] | null>(null);
+  const [aiSummary, setAiSummary] = useState('');
+  const [aiUsed, setAiUsed] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [isAiSearching, setIsAiSearching] = useState(false);
+  const currentUser = useAuthStore((state) => state.currentUser);
 
   const categories = ['All', 'Web Development', 'Mobile Apps', 'AI & Data Science', 'UI/UX Design'];
 
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
+    setAiResults(null);
+    setAiError('');
     const newParams = new URLSearchParams(searchParams);
     if (category === 'All') {
       newParams.delete('cat');
@@ -54,21 +66,79 @@ export const FreelancersDirectoryPage: React.FC = () => {
     });
   }, [searchTerm, selectedCategory]);
 
+  const displayedFreelancers = aiResults ? aiResults.map((result) => result.freelancer) : filteredFreelancers;
+  const recommendationById = new Map(aiResults?.map((result) => [result.freelancer.id, result]) || []);
+
+  const runAiSearch = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const query = searchTerm.trim();
+    if (!isAiMode || !query || isAiSearching) return;
+
+    setIsAiSearching(true);
+    setAiError('');
+    try {
+      const response = await api.findTalentWithAI(query, currentUser.id);
+      setAiResults(response.results);
+      setAiSummary(response.summary);
+      setAiUsed(response.aiUsed);
+    } catch (error) {
+      setAiResults(null);
+      setAiError(error instanceof Error ? error.message : 'AI Mode could not find talent right now.');
+    } finally {
+      setIsAiSearching(false);
+    }
+  };
+
+  const toggleAiMode = () => {
+    setIsAiMode((enabled) => !enabled);
+    setAiResults(null);
+    setAiSummary('');
+    setAiError('');
+  };
+
   return (
     <div className="bg-[#030712] text-slate-100 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Search & Category Header (Matching Doodle / Keystone Style) */}
         <div className="max-w-4xl mx-auto space-y-4">
-          <div className="relative">
-            <Search className="w-5 h-5 text-slate-400 absolute left-5 top-1/2 -translate-y-1/2" />
+          <form onSubmit={runAiSearch} className="relative">
+            <Search className="w-5 h-5 text-slate-400 absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="What do you need built? Search by skill, title, or keyword..."
+              placeholder={isAiMode ? 'Describe what you want to build...' : 'What do you need built? Search by skill, title, or keyword...'}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#0b1120] border border-slate-800 text-white placeholder-slate-500 rounded-2xl pl-13 pr-5 py-4 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm shadow-xl transition-all"
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setAiResults(null);
+                setAiError('');
+              }}
+              className="w-full bg-[#0b1120] border border-slate-800 text-white placeholder-slate-500 rounded-2xl pl-13 pr-31 py-4 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm shadow-xl transition-all"
             />
-          </div>
+            <button
+              type="button"
+              onClick={toggleAiMode}
+              aria-pressed={isAiMode}
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
+                isAiMode
+                  ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-600/30'
+                  : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              AI Mode
+            </button>
+          </form>
+
+          {isAiMode && (
+            <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 flex items-start gap-3">
+              <Sparkles className="w-4 h-4 text-blue-300 mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-blue-100">Describe your goal in plain language, then press Enter.</p>
+                <p className="text-[11px] text-blue-200/70 mt-0.5">Gemini will rank up to five verified freelancer profiles for the work you need.</p>
+              </div>
+              {isAiSearching && <LoaderCircle className="w-4 h-4 text-blue-300 animate-spin shrink-0" />}
+            </div>
+          )}
 
           {/* Category Filter Pills */}
           <div className="flex items-center gap-2.5 overflow-x-auto pb-2 scrollbar-none">
@@ -88,9 +158,28 @@ export const FreelancersDirectoryPage: React.FC = () => {
           </div>
         </div>
 
+        {aiError && (
+          <div className="max-w-4xl mx-auto rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 flex items-start gap-3 text-xs text-rose-100">
+            <X className="w-4 h-4 text-rose-300 mt-0.5 shrink-0" />
+            <span>{aiError}</span>
+          </div>
+        )}
+
+        {aiResults && (
+          <div className="max-w-4xl mx-auto rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-violet-100">
+              <Sparkles className="w-4 h-4 text-violet-300" />
+              {aiUsed ? 'AI-ranked talent matches' : 'Reliability-ranked talent matches'}
+            </div>
+            <p className="text-xs text-violet-100/75 mt-1">{aiSummary}</p>
+          </div>
+        )}
+
         {/* Freelancer Profiles Grid (3 Columns matching UI) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFreelancers.map((freelancer) => (
+          {displayedFreelancers.map((freelancer) => {
+            const recommendation = recommendationById.get(freelancer.id);
+            return (
             <div
               key={freelancer.id}
               className="bg-[#0b1120] border border-slate-800/90 hover:border-slate-700 rounded-3xl p-6 shadow-2xl transition-all duration-200 flex flex-col justify-between"
@@ -133,6 +222,16 @@ export const FreelancersDirectoryPage: React.FC = () => {
                   </div>
                 </div>
 
+                {recommendation && (
+                  <div className="rounded-xl border border-violet-500/25 bg-violet-500/10 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-violet-200">AI match</span>
+                      <span className="text-xs font-black text-violet-200">{recommendation.matchScore}%</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-violet-100/80">{recommendation.matchReason}</p>
+                  </div>
+                )}
+
                 {/* Bio */}
                 <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{freelancer.bio}</p>
 
@@ -172,10 +271,11 @@ export const FreelancersDirectoryPage: React.FC = () => {
                 </Link>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
-        {filteredFreelancers.length === 0 && (
+        {displayedFreelancers.length === 0 && (
           <div className="bg-[#0b1120] border border-slate-800 rounded-3xl p-12 text-center text-slate-400">
             <p className="text-base font-semibold text-white">No freelancers matched your criteria</p>
             <p className="text-xs text-slate-500 mt-1">Try clearing your filters or searching for different keywords.</p>

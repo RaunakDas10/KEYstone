@@ -12,6 +12,7 @@ import messagesRouter from './routes/messages';
 import notificationsRouter from './routes/notifications';
 import reportsRouter from './routes/reports';
 import payoutsRouter from './routes/payouts';
+import aiRouter from './routes/ai';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/payouts', payoutsRouter);
+app.use('/api/ai', aiRouter);
 
 // Health Check & DB status
 app.get('/api/health', (_req: Request, res: Response): void => {
