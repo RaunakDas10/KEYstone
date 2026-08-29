@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { MemoryRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { MemoryRouter as Router, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useProjectStore } from './store';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
@@ -85,6 +85,49 @@ const DashboardLayout: React.FC = () => (
   </div>
 );
 
+/**
+ * Keep internal routes out of the address bar while preserving browser Back
+ * and Forward navigation. Each screen is stored as a same-URL history entry.
+ */
+const BrowserHistoryBridge: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isInitialRender = useRef(true);
+  const pendingPopRoute = useRef<string | null>(null);
+  const route = `${location.pathname}${location.search}${location.hash}`;
+
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      window.history.replaceState({ ...(window.history.state ?? {}), keystoneRoute: route }, '', '/');
+      return;
+    }
+
+    if (pendingPopRoute.current === route) {
+      pendingPopRoute.current = null;
+      return;
+    }
+
+    window.history.pushState({ keystoneRoute: route }, '', '/');
+  }, [route]);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const previousRoute = event.state?.keystoneRoute;
+
+      if (typeof previousRoute !== 'string' || previousRoute === route) return;
+
+      pendingPopRoute.current = previousRoute;
+      navigate(previousRoute);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate, route]);
+
+  return null;
+};
+
 export function App() {
   const fetchInitialData = useProjectStore((state) => state.fetchInitialData);
 
@@ -94,6 +137,7 @@ export function App() {
 
   return (
     <Router>
+      <BrowserHistoryBridge />
       <Routes>
         {/* Public Landing & Marketing Pages */}
         <Route element={<PublicLayout />}>
