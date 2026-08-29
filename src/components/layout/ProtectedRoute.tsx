@@ -16,11 +16,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) 
   }
 
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
-    // Redirect unauthorized user to their proper dashboard
+    // Redirect unauthorized user to their proper overview
     if (currentUser.role === 'client') {
-      return <Navigate to="/client/dashboard" replace />;
+      return <Navigate to="/client/overview" replace />;
     } else if (currentUser.role === 'freelancer') {
-      return <Navigate to="/freelancer/dashboard" replace />;
+      return <Navigate to="/freelancer/overview" replace />;
     } else if (currentUser.role === 'admin') {
       return <Navigate to="/admin/dashboard" replace />;
     }

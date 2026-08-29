@@ -110,7 +110,7 @@ export const FreelancerProjectDetailPage: React.FC = () => {
   }
 
   if (project.freelancerId !== currentUser.id) {
-    return <div className="mx-auto max-w-2xl rounded-3xl border border-slate-800 bg-slate-900/90 p-8 text-center shadow-2xl"><Lock className="mx-auto h-8 w-8 text-slate-500" /><h1 className="mt-3 text-xl font-bold text-white">Project workspace unavailable</h1><p className="mt-2 text-xs leading-relaxed text-slate-400">Only the freelancer selected for this project can open its work and checkpoint submission tools.</p><Link to="/freelancer/dashboard" className="mt-5 inline-block"><Button variant="outline" size="sm">Back to my dashboard</Button></Link></div>;
+    return <div className="mx-auto max-w-2xl rounded-3xl border border-slate-800 bg-slate-900/90 p-8 text-center shadow-2xl"><Lock className="mx-auto h-8 w-8 text-slate-500" /><h1 className="mt-3 text-xl font-bold text-white">Project workspace unavailable</h1><p className="mt-2 text-xs leading-relaxed text-slate-400">Only the freelancer selected for this project can open its work and checkpoint submission tools.</p><Link to="/freelancer/overview" className="mt-5 inline-block"><Button variant="outline" size="sm">Back to Overview</Button></Link></div>;
   }
 
   return (

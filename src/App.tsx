@@ -16,12 +16,12 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 
 // Client Pages
-import { ClientDashboard } from './pages/client/ClientDashboard';
+import { ClientOverview } from './pages/client/ClientOverview';
 import { ClientNewProjectPage } from './pages/client/ClientNewProjectPage';
 import { ClientProjectDetailPage } from './pages/client/ClientProjectDetailPage';
 
 // Freelancer Pages
-import { FreelancerDashboard } from './pages/freelancer/FreelancerDashboard';
+import { FreelancerOverview } from './pages/freelancer/FreelancerOverview';
 import { FreelancerProjectDetailPage } from './pages/freelancer/FreelancerProjectDetailPage';
 import { FreelancerIncomePage } from './pages/freelancer/FreelancerIncomePage';
 
@@ -102,29 +102,31 @@ export function App() {
         {/* Private Client Workspace Routes */}
         <Route element={<ProtectedRoute allowedRoles={['client']} />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/client/dashboard" element={<ClientDashboard />} />
-            <Route path="/client/projects" element={<ClientDashboard />} />
+            <Route path="/client/overview" element={<ClientOverview />} />
+            <Route path="/client/dashboard" element={<ClientOverview />} />
+            <Route path="/client/projects" element={<ClientOverview />} />
             <Route path="/client/projects/new" element={<ClientNewProjectPage />} />
             <Route path="/client/projects/:id" element={<ClientProjectDetailPage />} />
             <Route path="/client/messages" element={<ChatPage />} />
             <Route path="/client/transactions" element={<AdminLedgerPage />} />
             <Route path="/client/notifications" element={<NotificationsPage />} />
-            <Route path="/client/settings" element={<ClientDashboard />} />
+            <Route path="/client/settings" element={<ClientOverview />} />
           </Route>
         </Route>
 
         {/* Private Freelancer Workspace Routes */}
         <Route element={<ProtectedRoute allowedRoles={['freelancer']} />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/freelancer/dashboard" element={<FreelancerDashboard />} />
-            <Route path="/freelancer/projects" element={<FreelancerDashboard />} />
+            <Route path="/freelancer/overview" element={<FreelancerOverview />} />
+            <Route path="/freelancer/dashboard" element={<FreelancerOverview />} />
+            <Route path="/freelancer/projects" element={<FreelancerOverview />} />
             <Route path="/freelancer/projects/:id" element={<FreelancerProjectDetailPage />} />
             <Route path="/freelancer/income" element={<FreelancerIncomePage />} />
             <Route path="/freelancer/transactions" element={<FreelancerIncomePage />} />
             <Route path="/freelancer/portfolio" element={<FreelancerProfilePage />} />
             <Route path="/freelancer/messages" element={<ChatPage />} />
             <Route path="/freelancer/notifications" element={<NotificationsPage />} />
-            <Route path="/freelancer/settings" element={<FreelancerDashboard />} />
+            <Route path="/freelancer/settings" element={<FreelancerOverview />} />
           </Route>
         </Route>
 

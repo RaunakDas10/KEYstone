@@ -24,8 +24,8 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     login(selectedRole);
 
-    if (selectedRole === 'client') navigate('/client/dashboard');
-    else if (selectedRole === 'freelancer') navigate('/freelancer/dashboard');
+    if (selectedRole === 'client') navigate('/client/overview');
+    else if (selectedRole === 'freelancer') navigate('/freelancer/overview');
     else navigate('/admin/dashboard');
   };
 

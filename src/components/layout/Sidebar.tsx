@@ -21,7 +21,7 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
 
   const clientLinks = [
-    { to: '/client/dashboard', label: 'Overview', icon: LayoutDashboard },
+    { to: '/client/overview', label: 'Overview', icon: LayoutDashboard },
     { to: '/client/projects', label: 'Projects', icon: Briefcase },
     { to: '/client/messages', label: 'Messages', icon: MessageSquare },
     { to: '/client/transactions', label: 'Transactions', icon: Receipt },
@@ -29,7 +29,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   const freelancerLinks = [
-    { to: '/freelancer/dashboard', label: 'Overview', icon: LayoutDashboard },
+    { to: '/freelancer/overview', label: 'Overview', icon: LayoutDashboard },
     { to: '/freelancer/projects', label: 'My Projects', icon: Briefcase },
     { to: '/marketplace', label: 'Open Projects', icon: Store },
     { to: '/freelancer/income', label: 'Income', icon: Wallet },

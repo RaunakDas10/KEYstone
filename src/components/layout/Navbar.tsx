@@ -22,9 +22,15 @@ export const Navbar: React.FC = () => {
   };
 
   const getDashboardRoute = () => {
-    if (currentUser.role === 'client') return '/client/dashboard';
-    if (currentUser.role === 'freelancer') return '/freelancer/dashboard';
+    if (currentUser.role === 'client') return '/client/overview';
+    if (currentUser.role === 'freelancer') return '/freelancer/overview';
     return '/admin/dashboard';
+  };
+
+  const getNotificationsRoute = () => {
+    if (currentUser.role === 'client') return '/client/notifications';
+    if (currentUser.role === 'freelancer') return '/freelancer/notifications';
+    return '/admin/notifications';
   };
 
   return (
@@ -47,11 +53,19 @@ export const Navbar: React.FC = () => {
           </Link>
 
           {/* Public Nav Links */}
-          {!showAccount && <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
-            <Link to="/marketplace" className="hover:text-blue-400 transition-colors">Marketplace</Link>
-            <Link to="/security" className="hover:text-blue-400 transition-colors">Security</Link>
-            <Link to="/how-it-works" className="hover:text-blue-400 transition-colors">How It Works</Link>
-          </div>}
+          {!showAccount && (
+            <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
+              <Link to="/marketplace" className="hover:text-blue-400 transition-colors">
+                Marketplace
+              </Link>
+              <Link to="/security" className="hover:text-blue-400 transition-colors">
+                Security
+              </Link>
+              <Link to="/how-it-works" className="hover:text-blue-400 transition-colors">
+                How It Works
+              </Link>
+            </div>
+          )}
 
           {/* User Actions */}
           <div className="hidden md:flex items-center gap-4">
@@ -62,12 +76,12 @@ export const Navbar: React.FC = () => {
                   className="flex items-center gap-1.5 text-xs font-semibold bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-3.5 py-1.5 rounded-xl transition-all"
                 >
                   <LayoutDashboard className="w-4 h-4" />
-                  Dashboard
+                  Overview
                 </Link>
 
                 {/* Notifications */}
                 <Link
-                  to={`${getDashboardRoute().replace('/dashboard', '/notifications')}`}
+                  to={getNotificationsRoute()}
                   className="relative p-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-colors"
                 >
                   <Bell className="w-5 h-5" />
@@ -125,12 +139,12 @@ export const Navbar: React.FC = () => {
             ) : (
               <div className="flex items-center gap-3">
                 <Link to="/login">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="outline" size="sm">
                     Log In
                   </Button>
                 </Link>
                 <Link to="/register">
-                  <Button variant="primary" size="sm" rightIcon={<Sparkles className="w-3.5 h-3.5" />}>
+                  <Button variant="primary" size="sm">
                     Get Started
                   </Button>
                 </Link>
@@ -151,11 +165,31 @@ export const Navbar: React.FC = () => {
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-slate-950 border-b border-slate-800 p-4 space-y-3">
-          {!showAccount && <>
-            <Link to="/marketplace" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm font-medium text-slate-300 hover:text-white">Marketplace</Link>
-            <Link to="/security" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm font-medium text-slate-300 hover:text-white">Security</Link>
-            <Link to="/how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm font-medium text-slate-300 hover:text-white">How It Works</Link>
-          </>}
+          {!showAccount && (
+            <>
+              <Link
+                to="/marketplace"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block text-sm font-medium text-slate-300 hover:text-white"
+              >
+                Marketplace
+              </Link>
+              <Link
+                to="/security"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block text-sm font-medium text-slate-300 hover:text-white"
+              >
+                Security
+              </Link>
+              <Link
+                to="/how-it-works"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block text-sm font-medium text-slate-300 hover:text-white"
+              >
+                How It Works
+              </Link>
+            </>
+          )}
 
           {showAccount ? (
             <div className="pt-3 border-t border-slate-800 space-y-2">
@@ -164,7 +198,7 @@ export const Navbar: React.FC = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="block text-sm font-bold text-blue-400"
               >
-                Go to Dashboard
+                Go to Overview
               </Link>
               <button onClick={handleLogout} className="block text-sm font-medium text-rose-400">
                 Sign Out
