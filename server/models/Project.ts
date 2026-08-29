@@ -7,9 +7,20 @@ export interface IMilestone {
   description: string;
   amount: number;
   deadline: string;
+  reviewDays?: number;
   acceptanceCriteria: string[];
   status: 'pending' | 'in_progress' | 'submitted' | 'approved' | 'failed';
   fundState: 'IN_CUSTODY' | 'FROZEN' | 'WITHDRAWABLE' | 'REFUNDED' | 'PAID' | 'DISPUTED';
+  cancellationKillFee?: number;
+}
+
+export interface IDeliverableItem {
+  id: string;
+  description: string;
+  milestoneId?: string;
+  appliesTo: 'CHECKPOINT' | 'FINAL';
+  status: 'PENDING' | 'COMPLETED';
+  markedCompleteAt?: string;
 }
 
 export interface ICheckpointSubmission {
@@ -23,6 +34,10 @@ export interface ICheckpointSubmission {
   completionPercentage: number;
   attachments?: { name: string; url: string; size: string }[];
   status: 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'disputed';
+  completedDeliverableIds?: string[];
+  scopeComplete?: boolean;
+  reviewDays?: number;
+  reviewDueAt?: string;
   feedback?: string;
   reviewedAt?: string;
 }
@@ -74,13 +89,17 @@ export interface IProject {
   applicationDeadline?: string;
   applications: IFreelancerApplication[];
   selectedAt?: string;
-  status: 'draft' | 'selection_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled';
+  status: 'draft' | 'selection_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled' | 'cancelled_by_customer';
   fundState: 'IN_CUSTODY' | 'FROZEN' | 'WITHDRAWABLE' | 'REFUNDED' | 'PAID' | 'DISPUTED';
   amountInCustody: number;
   amountFrozen: number;
   amountWithdrawable: number;
   amountPaid: number;
   amountRefunded: number;
+  checkpointReviewDays: number;
+  finalReviewDays: number;
+  deliverables: IDeliverableItem[];
+  deliverablesLockedAt?: string;
   milestones: IMilestone[];
   currentMilestoneIndex: number;
   submissions: ICheckpointSubmission[];
@@ -101,6 +120,7 @@ const MilestoneSchema = new Schema<IMilestone>(
     description: { type: String, default: '' },
     amount: { type: Number, required: true },
     deadline: { type: String, required: true },
+    reviewDays: { type: Number, default: 7 },
     acceptanceCriteria: { type: [String], default: [] },
     status: {
       type: String,
@@ -112,6 +132,7 @@ const MilestoneSchema = new Schema<IMilestone>(
       enum: ['IN_CUSTODY', 'FROZEN', 'WITHDRAWABLE', 'REFUNDED', 'PAID', 'DISPUTED'],
       default: 'IN_CUSTODY',
     },
+    cancellationKillFee: { type: Number },
   },
   { _id: false }
 );
@@ -139,6 +160,10 @@ const CheckpointSubmissionSchema = new Schema<ICheckpointSubmission>(
       enum: ['pending', 'submitted', 'under_review', 'approved', 'rejected', 'disputed'],
       default: 'under_review',
     },
+    completedDeliverableIds: { type: [String], default: [] },
+    scopeComplete: { type: Boolean, default: false },
+    reviewDays: { type: Number, default: 7 },
+    reviewDueAt: { type: String },
     feedback: { type: String },
     reviewedAt: { type: String },
   },
@@ -198,7 +223,7 @@ const ProjectSchema = new Schema<IProject>(
     selectedAt: { type: String },
     status: {
       type: String,
-      enum: ['draft', 'selection_pending', 'active', 'in_review', 'completed', 'disputed', 'cancelled'],
+      enum: ['draft', 'selection_pending', 'active', 'in_review', 'completed', 'disputed', 'cancelled', 'cancelled_by_customer'],
       default: 'active',
     },
     fundState: {
@@ -211,6 +236,21 @@ const ProjectSchema = new Schema<IProject>(
     amountWithdrawable: { type: Number, default: 0 },
     amountPaid: { type: Number, default: 0 },
     amountRefunded: { type: Number, default: 0 },
+    checkpointReviewDays: { type: Number, default: 7, min: 2, max: 21 },
+    finalReviewDays: { type: Number, default: 7, min: 2, max: 30 },
+    deliverables: {
+      type: [{
+        id: { type: String, required: true },
+        description: { type: String, required: true },
+        milestoneId: { type: String },
+        appliesTo: { type: String, enum: ['CHECKPOINT', 'FINAL'], required: true },
+        status: { type: String, enum: ['PENDING', 'COMPLETED'], default: 'PENDING' },
+        markedCompleteAt: { type: String },
+        _id: false,
+      }],
+      default: [],
+    },
+    deliverablesLockedAt: { type: String },
     milestones: { type: [MilestoneSchema], default: [] },
     currentMilestoneIndex: { type: Number, default: 0 },
     submissions: { type: [CheckpointSubmissionSchema], default: [] },

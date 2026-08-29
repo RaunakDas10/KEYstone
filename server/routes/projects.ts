@@ -12,6 +12,29 @@ const applicationDeadlineHasPassed = (deadline?: string) => {
   return new Date() > new Date(`${deadline}T23:59:59.999`);
 };
 
+const deriveProjectFundState = (project: {
+  amountInCustody: number;
+  amountFrozen: number;
+  amountWithdrawable: number;
+  amountRefunded: number;
+}) => {
+  if (project.amountFrozen > 0) return 'FROZEN' as const;
+  if (project.amountWithdrawable > 0) return 'WITHDRAWABLE' as const;
+  if (project.amountInCustody > 0) return 'IN_CUSTODY' as const;
+  if (project.amountRefunded > 0) return 'REFUNDED' as const;
+  return 'PAID' as const;
+};
+
+const MINIMUM_PROJECT_BUDGET = 500;
+const CANCELLATION_KILL_FEE_RATE = 0.3;
+
+const parseReviewDays = (value: unknown, fallback: number, minimum: number, maximum: number) => {
+  const parsed = Number(value ?? fallback);
+  return Number.isInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
+};
+
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+
 const migrateLegacyOpenProjects = async () => {
   const applicationDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await ProjectModel.updateMany(
@@ -64,6 +87,16 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     const projectData = req.body;
     const id = projectData.id || `proj_${Date.now()}`;
     const budget = Number(projectData.budget) || 50000;
+    if (budget < MINIMUM_PROJECT_BUDGET) {
+      res.status(400).json({ error: `Projects must be funded with at least ₹${MINIMUM_PROJECT_BUDGET}.` });
+      return;
+    }
+    const checkpointReviewDays = parseReviewDays(projectData.checkpointReviewDays, 7, 2, 21);
+    const finalReviewDays = parseReviewDays(projectData.finalReviewDays, 7, 2, 30);
+    if (!checkpointReviewDays || !finalReviewDays) {
+      res.status(400).json({ error: 'Checkpoint review must be 2–21 days and final review must be 2–30 days.' });
+      return;
+    }
     const access = projectData.access || (projectData.freelancerId ? 'invited' : 'open');
 
     const milestones =
@@ -82,6 +115,20 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
               fundState: 'IN_CUSTODY',
             },
           ];
+    const totalMilestoneAmount = milestones.reduce((total: number, milestone: { amount?: number }) => total + Number(milestone.amount || 0), 0);
+    if (totalMilestoneAmount !== budget || milestones.some((milestone: { amount?: number }) => Number(milestone.amount || 0) < 1)) {
+      res.status(400).json({ error: 'Milestone amounts must be at least ₹1 and add up exactly to the project budget.' });
+      return;
+    }
+    const deliverables = Array.isArray(projectData.deliverables) && projectData.deliverables.length > 0
+      ? projectData.deliverables
+      : milestones.flatMap((milestone: any) => (milestone.deliverables || milestone.acceptanceCriteria || []).map((description: string, index: number) => ({
+          id: `del_${milestone.id || id}_${index + 1}`,
+          description,
+          milestoneId: milestone.id,
+          appliesTo: 'CHECKPOINT',
+          status: 'PENDING',
+        })));
 
     const newProject = new ProjectModel({
       ...projectData,
@@ -92,6 +139,10 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       amountWithdrawable: 0,
       amountPaid: 0,
       amountRefunded: 0,
+      checkpointReviewDays,
+      finalReviewDays,
+      deliverables,
+      deliverablesLockedAt: new Date().toISOString(),
       fundState: 'IN_CUSTODY',
       access,
       applicationDeadline: access === 'open' ? projectData.applicationDeadline : undefined,
@@ -139,6 +190,90 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     await sysMsg.save();
 
     res.status(201).json(savedProject);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// PATCH project governance settings before work begins
+router.patch('/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const project = await ProjectModel.findOne({ id: req.params.id });
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    if (project.status !== 'draft' && project.status !== 'selection_pending') {
+      res.status(409).json({ error: 'Review windows and scope are locked once work begins.' });
+      return;
+    }
+    if (req.body.actorId && req.body.actorId !== project.clientId) {
+      res.status(403).json({ error: 'Only the customer can edit project governance settings.' });
+      return;
+    }
+    const checkpointReviewDays = parseReviewDays(req.body.checkpointReviewDays, project.checkpointReviewDays, 2, 21);
+    const finalReviewDays = parseReviewDays(req.body.finalReviewDays, project.finalReviewDays, 2, 30);
+    if (!checkpointReviewDays || !finalReviewDays) {
+      res.status(400).json({ error: 'Checkpoint review must be 2–21 days and final review must be 2–30 days.' });
+      return;
+    }
+    if (req.body.deliverables !== undefined && !Array.isArray(req.body.deliverables)) {
+      res.status(400).json({ error: 'Deliverables must be a checklist.' });
+      return;
+    }
+    project.checkpointReviewDays = checkpointReviewDays;
+    project.finalReviewDays = finalReviewDays;
+    if (Array.isArray(req.body.deliverables)) project.deliverables = req.body.deliverables;
+    project.lastActivityAt = new Date().toISOString();
+    await project.save();
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// POST customer cancellation with a deterministic kill fee for the next unfrozen milestone
+router.post('/:id/cancel', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const project = await ProjectModel.findOne({ id: req.params.id });
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    const { actorId, reason } = req.body;
+    if (actorId !== project.clientId) {
+      res.status(403).json({ error: 'Only the customer can cancel this project.' });
+      return;
+    }
+    if (project.status !== 'active' && project.status !== 'in_review') {
+      res.status(409).json({ error: 'Only an active project can be cancelled by the customer.' });
+      return;
+    }
+    const nextMilestone = project.milestones.find((milestone: any) => milestone.fundState === 'IN_CUSTODY');
+    if (!nextMilestone) {
+      res.status(409).json({ error: 'No unfrozen milestone remains. Use the review or dispute flow instead.' });
+      return;
+    }
+    const killFee = Math.floor(nextMilestone.amount * CANCELLATION_KILL_FEE_RATE);
+    const refundAmount = Math.max(0, project.amountInCustody - killFee);
+    const now = new Date().toISOString();
+    project.milestones = project.milestones.map((milestone: any) => milestone.id === nextMilestone.id
+      ? { ...milestone, status: 'failed', fundState: 'REFUNDED', cancellationKillFee: killFee }
+      : milestone);
+    project.amountInCustody = 0;
+    project.amountFrozen += killFee;
+    project.amountRefunded += refundAmount;
+    project.fundState = deriveProjectFundState(project);
+    project.status = 'cancelled_by_customer';
+    project.lastActivityAt = now;
+    await project.save();
+
+    const hash = () => `0x${Math.random().toString(16).substring(2)}${Math.random().toString(16).substring(2)}`;
+    await new LedgerEntryModel({ id: `led_${Date.now()}_kill`, projectId: project.id, projectTitle: project.title, actorId: project.clientId, actorName: project.clientName, actorRole: 'client', eventType: 'CANCELLATION_KILL_FEE', previousState: 'IN_CUSTODY', newState: 'FROZEN', amount: killFee, timestamp: now, referenceId: `CANCEL_KILL_${Date.now()}`, hash: hash(), notes: `Customer cancellation: ₹${killFee.toLocaleString()} frozen as builder kill-fee compensation for ${nextMilestone.title}. Reason: ${reason || 'Not provided'}` }).save();
+    await new LedgerEntryModel({ id: `led_${Date.now()}_refund`, projectId: project.id, projectTitle: project.title, actorId: project.clientId, actorName: project.clientName, actorRole: 'client', eventType: 'CANCELLATION_REFUND', previousState: 'IN_CUSTODY', newState: 'REFUNDED', amount: refundAmount, timestamp: now, referenceId: `CANCEL_REFUND_${Date.now()}`, hash: hash(), notes: `Customer cancellation refund after kill fee. Reason: ${reason || 'Not provided'}` }).save();
+    await new MessageModel({ id: `msg_${Date.now()}`, projectId: project.id, senderId: 'system', senderName: 'KEYStone Protocol', senderRole: 'admin', content: `CUSTOMER CANCELLATION: ₹${killFee.toLocaleString()} frozen as builder compensation; ₹${refundAmount.toLocaleString()} refunded to customer.`, timestamp: now, isSystemEvent: true, systemEventType: 'CANCELLATION_KILL_FEE' }).save();
+    if (project.freelancerId) await new NotificationModel({ id: `notif_${Date.now()}_kill`, userId: project.freelancerId, type: 'payment', title: 'Customer cancellation compensation secured', description: `₹${killFee.toLocaleString()} was frozen as your cancellation protection for "${project.title}".`, timestamp: 'Just now', read: false, link: '/freelancer/income' }).save();
+    res.json(project);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -295,27 +430,56 @@ router.post('/:id/milestones/:milestoneId/submit', async (req: Request, res: Res
       return;
     }
 
+    const milestone = project.milestones.find((item: any) => item.id === milestoneId);
+    if (!milestone) {
+      res.status(404).json({ error: 'Milestone not found.' });
+      return;
+    }
+    if (milestone.status === 'submitted' || milestone.status === 'approved' || milestone.fundState !== 'IN_CUSTODY') {
+      res.status(409).json({ error: 'This milestone has already entered review or been completed.' });
+      return;
+    }
+    if (project.submissions.some((submission: any) => submission.milestoneId === milestoneId)) {
+      res.status(409).json({ error: 'Each milestone accepts exactly one demo submission. It is already awaiting review or complete.' });
+      return;
+    }
+
+    const completedDeliverableIds = Array.isArray(submissionData.completedDeliverableIds) ? submissionData.completedDeliverableIds : [];
+    const relevantDeliverables = project.deliverables.filter((item: any) => !item.milestoneId || item.milestoneId === milestoneId);
+    if (completedDeliverableIds.some((itemId: string) => !relevantDeliverables.some((item: any) => item.id === itemId))) {
+      res.status(400).json({ error: 'A completed deliverable must belong to this milestone.' });
+      return;
+    }
+    const completedAt = new Date().toISOString();
+    project.deliverables = project.deliverables.map((item: any) => completedDeliverableIds.includes(item.id)
+      ? { ...item, status: 'COMPLETED', markedCompleteAt: completedAt }
+      : item);
+    const scopeComplete = relevantDeliverables.length > 0 && relevantDeliverables.every((item: any) => completedDeliverableIds.includes(item.id) || item.status === 'COMPLETED');
     const subId = `sub_${Date.now()}`;
+    const reviewDays = milestone.reviewDays || project.checkpointReviewDays || 7;
     const newSubmission = {
       ...submissionData,
       id: subId,
       milestoneId,
       submittedAt: new Date().toISOString(),
       status: 'under_review',
+      completedDeliverableIds,
+      scopeComplete,
+      reviewDays,
+      reviewDueAt: addDays(new Date(), reviewDays),
     };
 
-    let milestoneAmount = 0;
+    let milestoneAmount = milestone.amount || 0;
     project.milestones = project.milestones.map((m: any) => {
       if (m.id === milestoneId) {
-        milestoneAmount = m.amount || 0;
         return { ...m, status: 'submitted', fundState: 'FROZEN' };
       }
       return m;
     });
 
-    project.fundState = 'FROZEN';
     project.amountInCustody = Math.max(0, project.amountInCustody - milestoneAmount);
     project.amountFrozen = project.amountFrozen + milestoneAmount;
+    project.fundState = deriveProjectFundState(project);
     project.submissions.push(newSubmission);
     project.lastActivityAt = new Date().toISOString();
     project.inactivityDays = 0;
@@ -382,10 +546,23 @@ router.post('/:id/milestones/:milestoneId/approve', async (req: Request, res: Re
       return;
     }
 
-    let milestoneAmount = 0;
+    const milestone = project.milestones.find((item: any) => item.id === milestoneId);
+    if (!milestone) {
+      res.status(404).json({ error: 'Milestone not found.' });
+      return;
+    }
+    if (milestone.fundState !== 'FROZEN' || milestone.status !== 'submitted') {
+      res.status(409).json({ error: 'Only a submitted milestone under review can be approved.' });
+      return;
+    }
+    if (!project.submissions.some((submission: any) => submission.milestoneId === milestoneId && submission.status === 'under_review')) {
+      res.status(409).json({ error: 'This milestone does not have an approvable demo ticket.' });
+      return;
+    }
+
+    let milestoneAmount = milestone.amount || 0;
     project.milestones = project.milestones.map((m: any) => {
       if (m.id === milestoneId) {
-        milestoneAmount = m.amount || 0;
         return { ...m, status: 'approved', fundState: 'WITHDRAWABLE' };
       }
       return m;
@@ -402,9 +579,9 @@ router.post('/:id/milestones/:milestoneId/approve', async (req: Request, res: Re
     if (allApproved) {
       project.status = 'completed';
     }
-    project.fundState = 'WITHDRAWABLE';
     project.amountFrozen = Math.max(0, project.amountFrozen - milestoneAmount);
     project.amountWithdrawable = project.amountWithdrawable + milestoneAmount;
+    project.fundState = deriveProjectFundState(project);
     project.lastActivityAt = new Date().toISOString();
 
     await project.save();
@@ -588,7 +765,7 @@ router.post('/:id/auto-unlock', async (req: Request, res: Response): Promise<voi
       timestamp: new Date().toISOString(),
       referenceId: `AUTO_UNLOCK_${Date.now()}`,
       hash: `0x${Math.random().toString(16).substring(2)}${Math.random().toString(16).substring(2)}`,
-      notes: 'Client unresponsive for 7 days. Automated inactivity protection triggered. Funds released to freelancer.',
+      notes: `Client unresponsive for the agreed ${project.finalReviewDays}-day final review window. Automated inactivity protection triggered. Funds released to freelancer.`,
     }).save();
 
     await new MessageModel({
@@ -597,7 +774,7 @@ router.post('/:id/auto-unlock', async (req: Request, res: Response): Promise<voi
       senderId: 'system',
       senderName: 'KEYStone Protocol',
       senderRole: 'admin',
-      content: `7-DAY INACTIVITY PROTECTION TRIGGERED: Funds automatically moved to WITHDRAWABLE state.`,
+      content: `${project.finalReviewDays}-DAY INACTIVITY PROTECTION TRIGGERED: Funds automatically moved to WITHDRAWABLE state.`,
       timestamp: new Date().toISOString(),
       isSystemEvent: true,
       systemEventType: 'AUTO_UNLOCK_EXECUTED',

@@ -9,7 +9,7 @@ import { GoogleSignInButton } from '../../components/auth/GoogleSignInButton';
 
 export const RegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const defaultRole = (searchParams.get('role') as UserRole) || 'client';
+  const defaultRole: UserRole = searchParams.get('role') === 'freelancer' ? 'freelancer' : 'client';
   const [role, setRole] = useState<UserRole>(defaultRole);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

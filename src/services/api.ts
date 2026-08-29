@@ -88,6 +88,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(project),
     }),
+  updateProject: (projectId: string, updates: Partial<Project> & { actorId: string }) =>
+    request<Project>(`/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
   applyToProject: (projectId: string, freelancerId: string) =>
     request<Project>(`/projects/${projectId}/applications`, {
       method: 'POST',
@@ -114,6 +119,11 @@ export const api = {
   reject90_10: (projectId: string, milestoneId: string) =>
     request<Project>(`/projects/${projectId}/milestones/${milestoneId}/reject-90-10`, {
       method: 'POST',
+    }),
+  cancelProject: (projectId: string, actorId: string, reason: string) =>
+    request<Project>(`/projects/${projectId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ actorId, reason }),
     }),
   autoUnlock: (projectId: string) =>
     request<Project>(`/projects/${projectId}/auto-unlock`, {

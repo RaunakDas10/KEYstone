@@ -37,6 +37,10 @@ export const LedgerTable: React.FC<LedgerTableProps> = ({ entries, showSearch = 
         return <Badge variant="purple" icon={<RefreshCw className="w-3 h-3" />}>90/10 Resolution</Badge>;
       case 'AUTO_UNLOCK_EXECUTED':
         return <Badge variant="blue" icon={<CheckCircle2 className="w-3 h-3" />}>Auto-Unlocked</Badge>;
+      case 'CANCELLATION_KILL_FEE':
+        return <Badge variant="amber" icon={<Lock className="w-3 h-3" />}>Cancellation Kill Fee</Badge>;
+      case 'CANCELLATION_REFUND':
+        return <Badge variant="rose" icon={<ArrowDownLeft className="w-3 h-3" />}>Cancellation Refund</Badge>;
       case 'DISPUTE_OPENED':
         return <Badge variant="rose" icon={<ArrowDownLeft className="w-3 h-3" />}>Dispute Opened</Badge>;
       default:
@@ -82,6 +86,8 @@ export const LedgerTable: React.FC<LedgerTableProps> = ({ entries, showSearch = 
               <option value="FUNDS_RELEASED">Released</option>
               <option value="RESOLUTION_90_10_EXECUTED">90/10 Resolution</option>
               <option value="AUTO_UNLOCK_EXECUTED">Auto-Unlock</option>
+              <option value="CANCELLATION_KILL_FEE">Cancellation Kill Fee</option>
+              <option value="CANCELLATION_REFUND">Cancellation Refund</option>
             </select>
           </div>
         )}

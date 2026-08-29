@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { MemoryRouter as Router, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useProjectStore } from './store';
+import { useAuthStore, useProjectStore } from './store';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
 import { Footer } from './components/layout/Footer';
@@ -130,10 +130,12 @@ const BrowserHistoryBridge: React.FC = () => {
 
 export function App() {
   const fetchInitialData = useProjectStore((state) => state.fetchInitialData);
+  const fetchUsers = useAuthStore((state) => state.fetchUsers);
 
   useEffect(() => {
     fetchInitialData();
-  }, [fetchInitialData]);
+    fetchUsers();
+  }, [fetchInitialData, fetchUsers]);
 
   return (
     <Router>
@@ -161,10 +163,17 @@ export function App() {
           </Route>
         </Route>
 
+        {/* Authenticated talent discovery with server-side Gemini AI Mode */}
+        <Route element={<ProtectedRoute allowedRoles={['client', 'freelancer']} />}>
+          <Route element={<FullWidthLayout />}>
+            <Route path="/client/dashboard" element={<FreelancersDirectoryPage />} />
+            <Route path="/freelancer/dashboard" element={<FreelancersDirectoryPage />} />
+          </Route>
+        </Route>
+
         {/* Private Client Workspace Routes */}
         <Route element={<ProtectedRoute allowedRoles={['client']} />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/client/dashboard" element={<ClientOverview />} />
             <Route path="/client/overview" element={<ClientOverview />} />
             <Route path="/client/projects" element={<ClientOverview />} />
             <Route path="/client/projects/new" element={<ClientNewProjectPage />} />
@@ -179,7 +188,6 @@ export function App() {
         {/* Private Freelancer Workspace Routes */}
         <Route element={<ProtectedRoute allowedRoles={['freelancer']} />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/freelancer/dashboard" element={<FreelancerOverview />} />
             <Route path="/freelancer/overview" element={<FreelancerOverview />} />
             <Route path="/freelancer/projects" element={<FreelancerOverview />} />
             <Route path="/freelancer/projects/:id" element={<FreelancerProjectDetailPage />} />

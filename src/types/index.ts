@@ -2,7 +2,7 @@ export type UserRole = 'client' | 'freelancer' | 'admin';
 
 export type FundState = 'IN_CUSTODY' | 'FROZEN' | 'WITHDRAWABLE' | 'REFUNDED' | 'PAID' | 'DISPUTED';
 
-export type ProjectStatus = 'draft' | 'selection_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled';
+export type ProjectStatus = 'draft' | 'selection_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled' | 'cancelled_by_customer';
 export type ProjectAccess = 'invited' | 'open';
 
 export type CheckpointStatus = 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'disputed';
@@ -12,6 +12,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  roles?: UserRole[];
+  freelancerRoles?: string[];
   avatar?: string;
   title?: string;
   bio?: string;
@@ -42,10 +44,21 @@ export interface Milestone {
   description: string;
   amount: number;
   deadline: string;
+  reviewDays?: number; // Flex-Review Window (Dynamic auto-approval window in days: 2–21)
   acceptanceCriteria: string[];
   deliverables?: string[];  // AI-generated; used by future AI Checkpoint Analyzer
   status: 'pending' | 'in_progress' | 'submitted' | 'approved' | 'failed';
   fundState: FundState;
+  cancellationKillFee?: number;
+}
+
+export interface DeliverableItem {
+  id: string;
+  description: string;
+  milestoneId?: string;
+  appliesTo: 'CHECKPOINT' | 'FINAL';
+  status: 'PENDING' | 'COMPLETED';
+  markedCompleteAt?: string;
 }
 
 export interface CheckpointSubmission {
@@ -59,6 +72,10 @@ export interface CheckpointSubmission {
   completionPercentage: number;
   attachments?: { name: string; url: string; size: string }[];
   status: CheckpointStatus;
+  completedDeliverableIds?: string[];
+  scopeComplete?: boolean;
+  reviewDays?: number;
+  reviewDueAt?: string;
   feedback?: string;
   reviewedAt?: string;
 }
@@ -129,6 +146,10 @@ export interface Project {
   amountWithdrawable: number;
   amountPaid: number;
   amountRefunded: number;
+  checkpointReviewDays: number;
+  finalReviewDays: number;
+  deliverables: DeliverableItem[];
+  deliverablesLockedAt?: string;
   milestones: Milestone[];
   currentMilestoneIndex: number;
   submissions: CheckpointSubmission[];
@@ -177,6 +198,8 @@ export type LedgerEventType =
   | 'FUNDS_REFUNDED'
   | 'RESOLUTION_90_10_EXECUTED'
   | 'AUTO_UNLOCK_EXECUTED'
+  | 'CANCELLATION_KILL_FEE'
+  | 'CANCELLATION_REFUND'
   | 'DISPUTE_OPENED'
   | 'DISPUTE_RESOLVED'
   | 'PAYOUT_WITHDRAWN';

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ShieldCheck,
   Lock,
@@ -25,14 +25,17 @@ import { SEED_USERS } from '../../mock/seedData';
 import { FundLifecycleVisualizer } from '../../components/common/FundLifecycleVisualizer';
 import { TimelineVisualizer } from '../../components/common/TimelineVisualizer';
 import { FundStateBadge } from '../../components/common/FundStateBadge';
+import { FlexReviewCountdown } from '../../components/common/FlexReviewCountdown';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
 import { analyzeProject } from '../../services/ai/aiService';
+import type { FreelancerApplication } from '../../types';
 
 export const ClientProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser, rateFreelancer, selectFreelancer, autoUnlockProject } = useProjectStore();
+  const [searchParams] = useSearchParams();
+  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser, rateFreelancer, selectFreelancer, autoUnlockProject, cancelProject } = useProjectStore();
   const { currentUser } = useAuthStore();
 
   const project = projects.find((p) => p.id === id) || projects[0];
@@ -51,9 +54,19 @@ export const ClientProjectDetailPage: React.FC = () => {
   const [selectionError, setSelectionError] = useState('');
   const [isReanalyzing, setIsReanalyzing] = useState(false);
   const [localAiAnalysis, setLocalAiAnalysis] = useState(project.aiAnalysis ?? null);
+  const [selectedReviewMilestoneId, setSelectedReviewMilestoneId] = useState<string | null>(null);
+  const [isCancelProjectOpen, setIsCancelProjectOpen] = useState(() => searchParams.get('escrow') === 'cancel');
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [isScopeReportOpen, setIsScopeReportOpen] = useState(false);
+  const [scopeReportDescription, setScopeReportDescription] = useState('');
 
-  const currentMilestone = project.milestones[project.currentMilestoneIndex] || project.milestones[0];
-  const submission = project.submissions[0];
+  const reviewItems = project.milestones
+    .filter((milestone) => milestone.fundState === 'FROZEN')
+    .map((milestone) => ({ milestone, submission: project.submissions.find((item) => item.milestoneId === milestone.id) }))
+    .filter((item) => item.submission);
+  const selectedReview = reviewItems.find((item) => item.milestone.id === selectedReviewMilestoneId) || reviewItems[0];
+  const currentMilestone = selectedReview?.milestone || project.milestones[0];
+  const submission = selectedReview?.submission;
 
   const handleApprove = () => {
     approveCheckpoint(project.id, currentMilestone.id);
@@ -75,6 +88,26 @@ export const ClientProjectDetailPage: React.FC = () => {
     reportUser(SEED_USERS.freelancer, project.id, reportReason, reportReason, currentUser);
     setIsReportOpen(false);
     setReportReason('');
+  };
+  const handleCustomerCancellation = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (cancelProject(project.id, currentUser, cancellationReason)) {
+      setIsCancelProjectOpen(false);
+      setCancellationReason('');
+    }
+  };
+  const handleScopeReport = (event: React.FormEvent) => {
+    event.preventDefault();
+    const checklistStatus = submission?.scopeComplete ? 'The submitted checklist is marked complete.' : 'The submitted checklist is not marked complete.';
+    reportUser(
+      SEED_USERS.freelancer,
+      project.id,
+      'Scope creep / uncontracted work request',
+      `Milestone: ${currentMilestone.title}. ${checklistStatus}\n\nClient report: ${scopeReportDescription}`,
+      currentUser
+    );
+    setScopeReportDescription('');
+    setIsScopeReportOpen(false);
   };
 
   const handleReanalyze = async () => {
@@ -253,6 +286,7 @@ export const ClientProjectDetailPage: React.FC = () => {
                 Project Chat
               </Button>
             </Link>
+            {(project.status === 'active' || project.status === 'in_review') && <Button variant="outline" size="md" onClick={() => setIsCancelProjectOpen(true)} leftIcon={<AlertTriangle className="w-4 h-4 text-amber-400" />}>Manage Escrow & Cancel</Button>}
           </div>
         </div>
       </div>
@@ -340,6 +374,10 @@ export const ClientProjectDetailPage: React.FC = () => {
 
       {/* CHECKPOINT EVALUATION CONSOLE */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-4">
+          <div className="flex items-center justify-between gap-3"><div><span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">No-Block Review Queue</span><p className="mt-1 text-xs text-slate-400">Reviewing one checkpoint never prevents the builder from progressing on another funded milestone.</p></div><span className="shrink-0 text-sm font-mono font-bold text-white">{reviewItems.length} awaiting</span></div>
+          {reviewItems.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{reviewItems.map(({ milestone }) => <button key={milestone.id} type="button" onClick={() => setSelectedReviewMilestoneId(milestone.id)} className={`rounded-lg border px-3 py-2 text-left text-xs transition-colors ${currentMilestone.id === milestone.id ? 'border-amber-400/60 bg-amber-500/10 text-amber-200' : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500'}`}><span className="block font-bold">{milestone.title}</span><span className="mt-0.5 block font-mono text-[10px] text-emerald-400">₹{milestone.amount.toLocaleString()}</span></button>)}</div>}
+        </div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
           <div>
             <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Checkpoint Under Evaluation</span>
@@ -362,7 +400,23 @@ export const ClientProjectDetailPage: React.FC = () => {
               <Badge variant="amber">Status: Awaiting Client Review</Badge>
             </div>
 
+            {/* Flex-Review Dynamic Countdown */}
+            <FlexReviewCountdown
+              submittedAt={submission.submittedAt}
+              reviewDays={submission.reviewDays || currentMilestone.reviewDays || project.checkpointReviewDays || 7}
+              reviewDueAt={submission.reviewDueAt}
+              milestoneTitle={currentMilestone.title}
+              milestoneAmount={currentMilestone.amount}
+              isClientView={true}
+              status={submission.status}
+            />
+
             <p className="text-xs text-slate-300 leading-relaxed">{submission.description}</p>
+            <div className={`rounded-xl border p-3 text-xs ${submission.scopeComplete ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-slate-700 bg-slate-900 text-slate-300'}`}>
+              <strong>{submission.scopeComplete ? 'Scope checklist complete' : 'Scope checklist incomplete'}</strong>
+              <span className="ml-2 text-[11px]">{submission.completedDeliverableIds?.length || 0} checklist item{(submission.completedDeliverableIds?.length || 0) === 1 ? '' : 's'} marked with this demo. This is recorded evidence, not automatic approval.</span>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => setIsScopeReportOpen(true)} leftIcon={<Flag className="h-3.5 w-3.5 text-amber-400" />}>Report scope issue to admin</Button>
+            </div>
 
             <div className="flex flex-wrap gap-4 text-xs">
               {submission.demoUrl && (
@@ -402,14 +456,18 @@ export const ClientProjectDetailPage: React.FC = () => {
                   </Button>
 
                   <Button variant="outline" size="md" onClick={() => autoUnlockProject(project.id)} leftIcon={<Clock className="w-4 h-4 text-amber-400" />}>
-                    Simulate 7-Day Inactivity Auto-Release & Refund
+                    Simulate {project.finalReviewDays}-Day Inactivity Auto-Release & Refund
                   </Button>
                 </div>
 
-                <Button variant="danger" size="sm" onClick={() => setIsDisputeModalOpen(true)} leftIcon={<AlertTriangle className="w-3.5 h-3.5" />}>
-                  Raise Dispute
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setIsReportOpen(true)} leftIcon={<Flag className="w-3.5 h-3.5" />}>Report freelancer</Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="danger" size="sm" onClick={() => setIsDisputeModalOpen(true)} leftIcon={<AlertTriangle className="w-3.5 h-3.5" />}>
+                    Raise Dispute
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setIsReportOpen(true)} leftIcon={<Flag className="w-3.5 h-3.5" />}>
+                    Report freelancer
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -433,6 +491,22 @@ export const ClientProjectDetailPage: React.FC = () => {
         subtitle="Send a conduct or safety report to platform governance."
       >
         <form onSubmit={handleReport} className="space-y-4 text-xs"><textarea required rows={4} value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe the issue..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white" /><div className="flex justify-end"><Button type="submit" variant="danger">Submit report</Button></div></form>
+      </Modal>
+
+      <Modal isOpen={isCancelProjectOpen} onClose={() => setIsCancelProjectOpen(false)} title="Manage escrow: cancel project" subtitle="Cancellation refunds remaining custody, while a 30% kill fee from the next unfrozen milestone stays frozen for the builder.">
+        <form onSubmit={handleCustomerCancellation} className="space-y-4 text-xs text-slate-300">
+          {(() => { const next = project.milestones.find((milestone) => milestone.fundState === 'IN_CUSTODY'); const killFee = next ? Math.floor(next.amount * 0.3) : 0; return <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><p className="font-bold text-amber-200">30% cancellation-fee outcome</p><p className="mt-2">{next ? `₹${killFee.toLocaleString()} is frozen as builder compensation from “${next.title}”; the remaining ₹${Math.max(0, project.amountInCustody - killFee).toLocaleString()} in custody is refunded to you.` : 'No unfrozen milestone remains, so cancellation must use the review or dispute flow.'}</p></div>; })()}
+          <textarea required rows={3} value={cancellationReason} onChange={(event) => setCancellationReason(event.target.value)} placeholder="Why are you ending this project?" className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-white" />
+          <div className="flex justify-end gap-3"><Button type="button" variant="outline" size="sm" onClick={() => setIsCancelProjectOpen(false)}>Keep project</Button><Button type="submit" variant="danger" size="md" disabled={!project.milestones.some((milestone) => milestone.fundState === 'IN_CUSTODY')}>Confirm cancellation</Button></div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isScopeReportOpen} onClose={() => setIsScopeReportOpen(false)} title="Report scope issue" subtitle="This sends the locked checklist and your explanation to KEYStone admin review. It does not alter the milestone or payout automatically.">
+        <form onSubmit={handleScopeReport} className="space-y-4 text-xs text-slate-300">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3"><strong className="text-amber-200">Milestone evidence: </strong>{currentMilestone.title} — {submission?.scopeComplete ? 'checklist complete' : 'checklist incomplete'}.</div>
+          <textarea required rows={4} value={scopeReportDescription} onChange={(event) => setScopeReportDescription(event.target.value)} placeholder="Describe the uncontracted request or scope mismatch..." className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-white" />
+          <div className="flex justify-end gap-3"><Button type="button" variant="outline" size="sm" onClick={() => setIsScopeReportOpen(false)}>Cancel</Button><Button type="submit" variant="danger" size="md">Send to admin</Button></div>
+        </form>
       </Modal>
 
       <Modal

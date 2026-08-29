@@ -15,22 +15,24 @@ import {
 import { useProjectStore, useAuthStore, useMessageStore } from '../../store';
 import { SEED_USERS } from '../../mock/seedData';
 import { FundLifecycleVisualizer } from '../../components/common/FundLifecycleVisualizer';
-import { TimelineVisualizer } from '../../components/common/TimelineVisualizer';
 import { FundStateBadge } from '../../components/common/FundStateBadge';
+import { FlexReviewCountdown } from '../../components/common/FlexReviewCountdown';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
 
 export const FreelancerProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { projects, submitCheckpoint, reportUser, applyToProject, autoUnlockProject } = useProjectStore();
+  const { projects, submitCheckpoint, reportUser, applyToProject } = useProjectStore();
   const { currentUser } = useAuthStore();
   const { messages, sendMessage } = useMessageStore();
 
   const project = projects.find((p) => p.id === id) || projects[0];
-  const currentMilestone = project.milestones[project.currentMilestoneIndex] || project.milestones[0];
+  const readyMilestones = project.milestones.filter((milestone) => milestone.fundState === 'IN_CUSTODY' && milestone.status !== 'submitted' && milestone.status !== 'approved');
 
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
+  const [completedDeliverableIds, setCompletedDeliverableIds] = useState<string[]>([]);
   const [demoUrl, setDemoUrl] = useState('https://my-working-demo.keystone.app');
   const [githubUrl, setGithubUrl] = useState('https://github.com/ananyaroy/keystone-demo-repo');
   const [description, setDescription] = useState('Completed Milestone working prototype with responsive dark mode and Zustand state wiring.');
@@ -38,18 +40,25 @@ export const FreelancerProjectDetailPage: React.FC = () => {
   const [chatInput, setChatInput] = useState('');
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [isScopeReportOpen, setIsScopeReportOpen] = useState(false);
+  const [scopeReportDescription, setScopeReportDescription] = useState('');
   const [applicationError, setApplicationError] = useState('');
+
+  const selectedMilestone = project.milestones.find((milestone) => milestone.id === selectedMilestoneId) || readyMilestones[0] || project.milestones[0];
+  const scopeItems = project.deliverables?.filter((item) => !item.milestoneId || item.milestoneId === selectedMilestone?.id) || [];
 
   const projectMessages = messages.filter((m) => m.projectId === project.id);
 
   const handleSubmitDemo = (e: React.FormEvent) => {
     e.preventDefault();
-    submitCheckpoint(project.id, currentMilestone.id, {
-      milestoneId: currentMilestone.id,
+    if (!selectedMilestone || selectedMilestone.fundState !== 'IN_CUSTODY') return;
+    submitCheckpoint(project.id, selectedMilestone.id, {
+      milestoneId: selectedMilestone.id,
       demoUrl,
       githubUrl,
       description,
       notes,
+      completedDeliverableIds,
       completionPercentage: 100,
       attachments: [{ name: 'Lighthouse_Audit_Score.pdf', url: '#', size: '1.2 MB' }],
     });
@@ -62,11 +71,25 @@ export const FreelancerProjectDetailPage: React.FC = () => {
     sendMessage(project.id, chatInput, currentUser);
     setChatInput('');
   };
+
   const handleReport = (e: React.FormEvent) => {
     e.preventDefault();
     reportUser(SEED_USERS.client, project.id, reportReason, reportReason, currentUser);
     setReportReason('');
     setIsReportOpen(false);
+  };
+  const handleScopeReport = (event: React.FormEvent) => {
+    event.preventDefault();
+    const completedCount = scopeItems.filter((item) => item.status === 'COMPLETED' || completedDeliverableIds.includes(item.id)).length;
+    reportUser(
+      SEED_USERS.client,
+      project.id,
+      'Scope creep / uncontracted work request',
+      `Milestone: ${selectedMilestone?.title || 'Not selected'}. Checklist evidence: ${completedCount}/${scopeItems.length} contracted items complete.\n\nFreelancer report: ${scopeReportDescription}`,
+      currentUser
+    );
+    setScopeReportDescription('');
+    setIsScopeReportOpen(false);
   };
 
   const isOpenForApplications = project.access === 'open' && !project.selectedAt && (project.status === 'selection_pending' || !project.applicationDeadline);
@@ -95,7 +118,7 @@ export const FreelancerProjectDetailPage: React.FC = () => {
           <div className="grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4"><div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Client</span><span className="mt-1 block font-semibold text-white">{project.clientName}</span></div><div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</span><span className="mt-1 block font-semibold text-white">{project.category}</span></div><div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Project deadline</span><span className="mt-1 block font-semibold text-white">{project.deadline}</span></div><div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3"><span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400">Total budget</span><span className="mt-1 block font-mono font-bold text-white">₹{project.budget.toLocaleString()}</span></div></div>
           <div><h3 className="text-sm font-bold text-white">Required skills</h3><div className="mt-3 flex flex-wrap gap-2">{project.skills.map((skill) => <span key={skill} className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2.5 py-1.5 text-[11px] font-medium text-blue-200">{skill}</span>)}</div></div>
           <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="text-sm font-bold text-white">Payment protection</h3><p className="mt-1 text-xs leading-relaxed text-slate-400">The client has secured 100% of the project budget in KEYStone custody. Each milestone moves to review after its working demo is submitted, and becomes withdrawable after client approval.</p></div><span className="shrink-0 rounded-xl bg-emerald-500/15 px-3 py-2 text-xs font-bold text-emerald-300">100% funded in custody</span></div></div>
-          <div><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-white">Milestone and payment schedule</h3><span className="text-[11px] text-slate-500">{project.milestones.length} checkpoint{project.milestones.length === 1 ? '' : 's'}</span></div><div className="mt-3 space-y-3">{project.milestones.map((milestone, index) => <div key={milestone.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Milestone {index + 1}</span><h4 className="mt-1 text-sm font-bold text-white">{milestone.title}</h4><p className="mt-1 text-xs text-slate-400">Due {milestone.deadline}</p></div><span className="font-mono text-sm font-bold text-emerald-400">₹{milestone.amount.toLocaleString()}</span></div><div className="mt-3 flex flex-wrap gap-1.5">{milestone.acceptanceCriteria.map((criterion) => <span key={criterion} className="rounded bg-slate-900 px-2 py-1 text-[10px] text-slate-300">{criterion}</span>)}</div></div>)}</div></div>
+          <div><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-white">Milestone and payment schedule</h3><span className="text-[11px] text-slate-500">{project.milestones.length} checkpoint{project.milestones.length === 1 ? '' : 's'}</span></div><div className="mt-3 space-y-3">{project.milestones.map((milestone, index) => <div key={milestone.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Milestone {index + 1}</span><h4 className="mt-1 text-sm font-bold text-white">{milestone.title}</h4><p className="mt-1 text-xs text-slate-400">Due {milestone.deadline}</p></div><span className="font-mono text-sm font-bold text-emerald-400">₹{milestone.amount.toLocaleString()}</span></div><div className="mt-3 flex flex-wrap gap-1.5">{milestone.acceptanceCriteria?.map((criterion) => <span key={criterion} className="rounded bg-slate-900 px-2 py-1 text-[10px] text-slate-300">{criterion}</span>)}</div></div>)}</div></div>
         </div>
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
@@ -137,7 +160,7 @@ export const FreelancerProjectDetailPage: React.FC = () => {
               ₹{project.budget.toLocaleString()} Locked in Vault
             </span>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setIsReportOpen(true)} leftIcon={<Flag className="w-3.5 h-3.5" />}>Report client</Button>
+          <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => setIsScopeReportOpen(true)} leftIcon={<Flag className="w-3.5 h-3.5 text-amber-400" />}>Report scope creep</Button><Button variant="outline" size="sm" onClick={() => setIsReportOpen(true)} leftIcon={<Flag className="w-3.5 h-3.5" />}>Report client</Button></div>
         </div>
       </div>
 
@@ -150,69 +173,133 @@ export const FreelancerProjectDetailPage: React.FC = () => {
         totalBudget={project.budget}
       />
 
-      {/* CHECKPOINT SUBMISSION ACTION BAR */}
+      {/* PARALLEL CHECKPOINT WORKBENCH */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          <div>
-            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Current Milestone</span>
-            <h3 className="text-xl font-bold text-white">{currentMilestone.title}</h3>
-          </div>
+        <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-4">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Independent Milestone Workflows</span>
+          <h3 className="mt-1 text-lg font-bold text-white">Milestone Submission & Approval Lifecycle</h3>
+          <p className="mt-1 text-xs text-slate-400">
+            Each milestone is submitted exactly once. Submitting freezes its funds in review. You can proceed to work on the next milestone, while milestone payout is released only after the client approves it.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {project.milestones.map((milestone, index) => {
+              const isReady = milestone.fundState === 'IN_CUSTODY' && milestone.status !== 'submitted' && milestone.status !== 'approved';
+              const isFrozen = milestone.fundState === 'FROZEN' || milestone.status === 'submitted';
+              const isApproved = milestone.fundState === 'WITHDRAWABLE' || milestone.status === 'approved';
 
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-bold font-mono text-emerald-400">₹{currentMilestone.amount.toLocaleString()}</span>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => setIsSubmitModalOpen(true)}
-              leftIcon={<FileCheck className="w-4 h-4" />}
-            >
-              Submit Checkpoint Demo
-            </Button>
+              let statusVariant: 'blue' | 'amber' | 'emerald' | 'slate' = 'slate';
+              let statusLabel = milestone.status;
+
+              if (isReady) {
+                statusVariant = 'blue';
+                statusLabel = 'Ready to build & submit';
+              } else if (isFrozen) {
+                statusVariant = 'amber';
+                statusLabel = 'Under Client Review (Funds Frozen)';
+              } else if (isApproved) {
+                statusVariant = 'emerald';
+                statusLabel = 'Approved & Funds Released';
+              }
+
+              return (
+                <div key={milestone.id} className={`rounded-2xl border p-4 ${isReady ? 'border-blue-500/35 bg-slate-950' : isFrozen ? 'border-amber-500/30 bg-amber-500/5' : 'border-slate-800 bg-slate-950/60'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Milestone {index + 1}</span>
+                      <h4 className="mt-1 text-sm font-bold text-white">{milestone.title}</h4>
+                      <p className="mt-1 text-xs text-slate-400">{milestone.description}</p>
+                    </div>
+                    <span className="font-mono text-sm font-bold text-emerald-400">₹{milestone.amount.toLocaleString()}</span>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 pt-3">
+                    <Badge variant={statusVariant}>{statusLabel}</Badge>
+                    {isReady ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedMilestoneId(milestone.id);
+                          setCompletedDeliverableIds([]);
+                          setIsSubmitModalOpen(true);
+                        }}
+                        leftIcon={<FileCheck className="h-3.5 w-3.5" />}
+                      >
+                        Submit Milestone {index + 1} Demo
+                      </Button>
+                    ) : isFrozen ? (
+                      <span className="text-[11px] text-amber-300 flex items-center gap-1 font-semibold">
+                        <Clock className="w-3.5 h-3.5" /> Awaiting Client Approval
+                      </span>
+                    ) : isApproved ? (
+                      <span className="text-[11px] text-emerald-300 flex items-center gap-1 font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Payout Unlocked
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Existing Submissions List */}
-        {project.submissions.length > 0 ? (
+        {project.submissions && project.submissions.length > 0 ? (
           <div className="space-y-4">
-            <h4 className="text-sm font-bold text-white">Submitted Checkpoint Demos</h4>
-            {project.submissions.map((sub) => (
-              <div key={sub.id} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-3 text-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span className="font-bold text-white">Working Demo Submission</span>
+            <h4 className="text-sm font-bold text-white">Submitted Checkpoint Demos & Auto-Approval Timers</h4>
+            {project.submissions.map((sub) => {
+              const ms = project.milestones.find((m) => m.id === sub.milestoneId);
+              const reviewDays = sub.reviewDays || ms?.reviewDays || project.checkpointReviewDays || 7;
+              return (
+                <div key={sub.id} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span className="font-bold text-white">{ms?.title || 'Working Demo Submission'}</span>
+                      {ms && <span className="font-mono text-emerald-400 font-bold">₹{ms.amount.toLocaleString()}</span>}
+                    </div>
+                    <Badge variant={sub.status === 'approved' ? 'emerald' : 'amber'}>
+                      {sub.status === 'approved' ? 'Approved & Funds Released' : 'Awaiting Client Review & Approval'}
+                    </Badge>
                   </div>
-                  <Badge variant={sub.status === 'approved' ? 'emerald' : 'amber'}>
-                    {sub.status === 'approved' ? 'Approved & Funds Released' : 'Awaiting Client Review'}
-                  </Badge>
-                </div>
 
-                <p className="text-slate-300">{sub.description}</p>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
-                  <div className="flex gap-3">
-                    {sub.demoUrl && (
-                      <a href={sub.demoUrl} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1 font-semibold">
-                        Live Demo Link <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                    {sub.githubUrl && (
-                      <a href={sub.githubUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:underline flex items-center gap-1 font-semibold">
-                        Repository <GitBranch className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                  {project.fundState !== 'WITHDRAWABLE' && (
-                    <Button variant="outline" size="sm" onClick={() => autoUnlockProject(project.id)} leftIcon={<Clock className="w-3.5 h-3.5 text-amber-400" />}>
-                      Trigger 7-Day Client Inactivity Auto-Unlock
-                    </Button>
+                  {sub.status !== 'approved' && (
+                    <FlexReviewCountdown
+                      submittedAt={sub.submittedAt}
+                      reviewDays={reviewDays}
+                      reviewDueAt={sub.reviewDueAt}
+                      milestoneTitle={ms?.title}
+                      milestoneAmount={ms?.amount}
+                      isClientView={false}
+                      status={sub.status}
+                    />
                   )}
+
+                  <p className="text-slate-300">{sub.description}</p>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+                    <div className="flex gap-3">
+                      {sub.demoUrl && (
+                        <a href={sub.demoUrl} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1 font-semibold">
+                          Live Demo Link <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      {sub.githubUrl && (
+                        <a href={sub.githubUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:underline flex items-center gap-1 font-semibold">
+                          Repository <GitBranch className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-500">
+                      Submitted on {new Date(sub.submittedAt).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
-          <p className="text-xs text-slate-400">No working demo submitted yet for this milestone. Click above to submit.</p>
+          <p className="text-xs text-slate-400">No working demo submitted yet for this project. Submit a ready milestone above.</p>
         )}
       </div>
 
@@ -269,6 +356,13 @@ export const FreelancerProjectDetailPage: React.FC = () => {
       <Modal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} title="Report client" subtitle="Send a conduct or safety report to platform governance.">
         <form onSubmit={handleReport} className="space-y-4 text-xs"><textarea required rows={4} value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe the issue..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white" /><div className="flex justify-end"><Button type="submit" variant="danger">Submit report</Button></div></form>
       </Modal>
+      <Modal isOpen={isScopeReportOpen} onClose={() => setIsScopeReportOpen(false)} title="Report scope creep" subtitle="Send the locked deliverable checklist and an uncontracted-work request to KEYStone admin review.">
+        <form onSubmit={handleScopeReport} className="space-y-4 text-xs text-slate-300">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">Checklist evidence is attached automatically: {scopeItems.filter((item) => item.status === 'COMPLETED' || completedDeliverableIds.includes(item.id)).length}/{scopeItems.length} items marked complete for {selectedMilestone?.title || 'this milestone'}.</div>
+          <textarea required rows={4} value={scopeReportDescription} onChange={(event) => setScopeReportDescription(event.target.value)} placeholder="Describe the additional work the client requested outside the agreed checklist..." className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-white" />
+          <div className="flex justify-end gap-3"><Button type="button" variant="outline" size="sm" onClick={() => setIsScopeReportOpen(false)}>Cancel</Button><Button type="submit" variant="danger" size="md">Send to admin</Button></div>
+        </form>
+      </Modal>
       <Modal
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
@@ -277,7 +371,12 @@ export const FreelancerProjectDetailPage: React.FC = () => {
       >
         <form onSubmit={handleSubmitDemo} className="space-y-4 text-xs">
           <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300">
-            🔒 <strong>Fund Protection Notice:</strong> Submitting this demo will freeze ₹{currentMilestone.amount.toLocaleString()} during client evaluation.
+            🔒 <strong>Fund Protection Notice:</strong> Submitting this demo will freeze ₹{selectedMilestone?.amount.toLocaleString()} for <strong>{selectedMilestone?.title}</strong> during client evaluation. Funds are unlocked for payout once approved by the client.
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+            <div className="flex items-center justify-between gap-3"><div><h4 className="text-xs font-bold text-white">Contracted scope checklist</h4><p className="mt-1 text-[11px] text-slate-400">Mark only deliverables that are demonstrably complete. This creates evidence; it never auto-approves payment.</p></div><Badge variant={scopeItems.length > 0 && scopeItems.every((item) => completedDeliverableIds.includes(item.id) || item.status === 'COMPLETED') ? 'emerald' : 'slate'}>{scopeItems.length > 0 && scopeItems.every((item) => completedDeliverableIds.includes(item.id) || item.status === 'COMPLETED') ? 'Scope complete' : 'Evidence incomplete'}</Badge></div>
+            <div className="mt-3 space-y-2">{scopeItems.length ? scopeItems.map((item) => <label key={item.id} className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-900"><input type="checkbox" checked={item.status === 'COMPLETED' || completedDeliverableIds.includes(item.id)} disabled={item.status === 'COMPLETED'} onChange={(event) => setCompletedDeliverableIds((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} className="mt-0.5 accent-emerald-500" /><span className="text-[11px] text-slate-300">{item.description}</span></label>) : <p className="text-[11px] text-slate-500">No checklist items were defined for this legacy milestone.</p>}</div>
           </div>
 
           <div>

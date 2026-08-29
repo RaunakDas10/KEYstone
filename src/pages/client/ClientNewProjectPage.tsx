@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle2, Lock, Sparkles } from 'lucide-react';
+import { ShieldCheck, Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle2, Lock, Sparkles, Clock, Zap } from 'lucide-react';
 import { useAuthStore, useProjectStore } from '../../store';
 import { SEED_FREELANCERS } from '../../mock/seedData';
 import { Button } from '../../components/ui/Button';
@@ -42,11 +42,13 @@ export const ClientNewProjectPage: React.FC = () => {
   // ---- Step 3: Budget & Timeline ----
   const [budget, setBudget] = useState(50000);
   const [deadline, setDeadline] = useState('2026-10-15');
+  const [checkpointReviewDays, setCheckpointReviewDays] = useState(7);
+  const [finalReviewDays, setFinalReviewDays] = useState(7);
 
   // ---- Step 4: AI Milestones ----
   const [milestones, setMilestones] = useState([
-    { title: 'Milestone 1: Core Working Demo & Architecture', amount: 25000, deadline: '2026-09-15', criteria: 'Interactive prototype link & repo', deliverables: ['Core architecture', 'Working prototype'] },
-    { title: 'Milestone 2: Final Integration & Launch', amount: 25000, deadline: '2026-10-15', criteria: 'Production deployment & zero errors', deliverables: ['Production deployment', 'Zero critical errors'] },
+    { title: 'Milestone 1: Core Working Demo & Architecture', amount: 25000, deadline: '2026-09-15', criteria: 'Interactive prototype link & repo', deliverables: ['Core architecture', 'Working prototype'], reviewDays: 3 },
+    { title: 'Milestone 2: Final Integration & Launch', amount: 25000, deadline: '2026-10-15', criteria: 'Production deployment & zero errors', deliverables: ['Production deployment', 'Zero critical errors'], reviewDays: 7 },
   ]);
 
   // ---- Step 6: Payment ----
@@ -75,12 +77,13 @@ export const ClientNewProjectPage: React.FC = () => {
   // ---- AI Milestone handlers ----
   const handleAIMilestonesAccepted = (aiMilestones: AIMilestone[]) => {
     setMilestones(
-      aiMilestones.map((ms) => ({
+      aiMilestones.map((ms, idx) => ({
         title: ms.title,
         amount: ms.suggestedAmount,
         deadline,
         criteria: ms.acceptanceCriteria.join(' | '),
         deliverables: ms.deliverables,
+        reviewDays: ms.reviewDays || (idx === 0 ? 3 : idx === 1 ? 7 : 14),
       }))
     );
     setStep(5);
@@ -90,7 +93,7 @@ export const ClientNewProjectPage: React.FC = () => {
   const handleAddMilestone = () => {
     setMilestones([
       ...milestones,
-      { title: `Milestone ${milestones.length + 1}: Deliverable`, amount: 10000, deadline: '2026-10-15', criteria: 'Acceptance criteria', deliverables: [] },
+      { title: `Milestone ${milestones.length + 1}: Deliverable`, amount: 10000, deadline: '2026-10-15', criteria: 'Acceptance criteria', deliverables: [], reviewDays: 7 },
     ]);
   };
 
@@ -114,6 +117,8 @@ export const ClientNewProjectPage: React.FC = () => {
         skills: skillsInput.split(',').map((s) => s.trim()).filter(Boolean),
         budget: Number(budget),
         deadline,
+        checkpointReviewDays,
+        finalReviewDays,
         access,
         ...(access === 'open' ? { applicationDeadline } : {}),
         ...(access === 'invited'
@@ -129,11 +134,19 @@ export const ClientNewProjectPage: React.FC = () => {
           description: m.criteria,
           amount: Number(m.amount),
           deadline: m.deadline,
+          reviewDays: m.reviewDays || 7,
           acceptanceCriteria: m.criteria.split(' | ').filter(Boolean),
           deliverables: m.deliverables || [],
           status: 'pending' as const,
           fundState: 'IN_CUSTODY' as const,
         })),
+        deliverables: milestones.flatMap((m, milestoneIndex) => (m.deliverables.length ? m.deliverables : m.criteria.split(' | ').filter(Boolean)).map((description, itemIndex) => ({
+          id: `del_new_${milestoneIndex}_${itemIndex}`,
+          description,
+          milestoneId: `ms_new_${milestoneIndex}`,
+          appliesTo: 'CHECKPOINT' as const,
+          status: 'PENDING' as const,
+        }))),
         // Attach AI analysis (advisory — never used for fund decisions)
         ...(aiAnalysis
           ? {
@@ -335,10 +348,12 @@ export const ClientNewProjectPage: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-300 mb-1">Total Budget (INR ₹)</label>
               <input
                 type="number"
+                min={500}
                 value={budget}
                 onChange={(e) => setBudget(Number(e.target.value))}
                 className="w-full bg-slate-950 border border-slate-800 text-white text-sm font-bold font-mono rounded-xl p-3 focus:outline-none focus:border-blue-500"
               />
+              <p className="text-[11px] text-slate-500 mt-1">Micro-project friendly: projects can start at ₹500; each milestone must be at least ₹1.</p>
               {aiAnalysis && (
                 <p className="text-[11px] text-slate-500 mt-1">
                   Budget adequacy score: <strong className={aiAnalysis.scoreBreakdown.budgetAdequacy >= 65 ? 'text-emerald-400' : aiAnalysis.scoreBreakdown.budgetAdequacy >= 40 ? 'text-amber-400' : 'text-rose-400'}>{aiAnalysis.scoreBreakdown.budgetAdequacy}%</strong>
@@ -360,6 +375,41 @@ export const ClientNewProjectPage: React.FC = () => {
                 </p>
               )}
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Checkpoint review window</label>
+                <select value={checkpointReviewDays} onChange={(e) => setCheckpointReviewDays(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-blue-500">
+                  {[2, 3, 5, 7, 10, 14, 21].map((days) => <option key={days} value={days}>{days} days</option>)}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">Time to review each working demo.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Final review window</label>
+                <select value={finalReviewDays} onChange={(e) => setFinalReviewDays(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-blue-500">
+                  {[2, 3, 5, 7, 10, 14, 21, 30].map((days) => <option key={days} value={days}>{days} days</option>)}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">Time to review the final delivery.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between pt-2">
+            <Button variant="outline" size="md" onClick={() => setStep(2)} leftIcon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
+            <Button variant="primary" size="md" onClick={() => setStep(4)} rightIcon={<ArrowRight className="w-4 h-4" />}>
+              Next: AI Milestones
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ========== STEP 4: AI MILESTONE SUGGESTIONS ========== */}
+      {step === 4 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Button variant="outline" size="sm" onClick={() => setStep(3)} leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}>
+              Back
+            </Button>
+            <span className="text-xs text-slate-500">Step 4 of 6</span>
           </div>
 
           <div className="flex justify-between pt-2">
@@ -388,14 +438,17 @@ export const ClientNewProjectPage: React.FC = () => {
           {/* Manual milestones fallback (shown below AI panel for "skip" path) */}
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white">Or define milestones manually</h3>
-              <Button variant="outline" size="sm" onClick={handleAddMilestone} leftIcon={<Plus className="w-3.5 h-3.5" />}>Add</Button>
+              <div>
+                <h3 className="text-sm font-bold text-white">Or define milestones manually</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Customize budget, acceptance criteria, and Flex-Review window per milestone.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleAddMilestone} leftIcon={<Plus className="w-3.5 h-3.5" />}>Add Milestone</Button>
             </div>
             <div className="space-y-3">
               {milestones.map((m, idx) => (
-                <div key={idx} className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                <div key={idx} className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-blue-400">Milestone #{idx + 1}</span>
+                    <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Milestone #{idx + 1}</span>
                     {milestones.length > 1 && (
                       <button onClick={() => handleRemoveMilestone(idx)} className="text-slate-500 hover:text-rose-400">
                         <Trash2 className="w-3.5 h-3.5" />
@@ -403,15 +456,55 @@ export const ClientNewProjectPage: React.FC = () => {
                     )}
                   </div>
                   <div className="grid sm:grid-cols-2 gap-2">
-                    <input type="text" placeholder="Title" value={m.title} onChange={(e) => { const u = [...milestones]; u[idx].title = e.target.value; setMilestones(u); }} className="bg-slate-900 border border-slate-800 text-white text-xs rounded-xl p-2" />
-                    <input type="number" placeholder="Amount (₹)" value={m.amount} onChange={(e) => { const u = [...milestones]; u[idx].amount = Number(e.target.value); setMilestones(u); }} className="bg-slate-900 border border-slate-800 text-white text-xs font-mono font-bold rounded-xl p-2" />
+                    <input type="text" placeholder="Title" value={m.title} onChange={(e) => { const u = [...milestones]; u[idx].title = e.target.value; setMilestones(u); }} className="bg-slate-900 border border-slate-800 text-white text-xs rounded-xl p-2.5" />
+                    <input type="number" placeholder="Amount (₹)" value={m.amount} onChange={(e) => { const u = [...milestones]; u[idx].amount = Number(e.target.value); setMilestones(u); }} className="bg-slate-900 border border-slate-800 text-white text-xs font-mono font-bold rounded-xl p-2.5" />
                   </div>
-                  <input type="text" placeholder="Acceptance criteria" value={m.criteria} onChange={(e) => { const u = [...milestones]; u[idx].criteria = e.target.value; setMilestones(u); }} className="w-full bg-slate-900 border border-slate-800 text-white text-xs rounded-xl p-2" />
+                  <input type="text" placeholder="Acceptance criteria (separated by |)" value={m.criteria} onChange={(e) => { const u = [...milestones]; u[idx].criteria = e.target.value; setMilestones(u); }} className="w-full bg-slate-900 border border-slate-800 text-white text-xs rounded-xl p-2.5" />
+                  
+                  {/* Flex-Review Window Selector */}
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-blue-300">
+                        <Clock className="w-3.5 h-3.5 text-blue-400" />
+                        Flex-Review Window (Dynamic Auto-Approval)
+                      </label>
+                      <span className="text-[10px] font-bold font-mono text-emerald-400">{m.reviewDays || 7} Days</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                      {[
+                        { days: 3, label: '3d Fast', desc: 'Sketches/Copy' },
+                        { days: 7, label: '7d Standard', desc: 'Prototypes' },
+                        { days: 14, label: '14d Deep QA', desc: 'Full Deployments' },
+                        { days: 21, label: '21d Enterprise', desc: 'Security Audits' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.days}
+                          type="button"
+                          onClick={() => {
+                            const u = [...milestones];
+                            u[idx].reviewDays = preset.days;
+                            setMilestones(u);
+                          }}
+                          className={`rounded-lg p-2 text-left transition-all border ${
+                            (m.reviewDays || 7) === preset.days
+                              ? 'border-blue-500 bg-blue-500/20 text-white font-semibold shadow-sm'
+                              : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          <span className="block text-[11px] font-bold">{preset.label}</span>
+                          <span className="block text-[9px] opacity-75">{preset.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      💡 <strong>Guaranteed Fair Escrow:</strong> Client has {m.reviewDays || 7} days to review the demo. If client is unresponsive, funds auto-release to freelancer.
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
             <div className="flex justify-end">
-              <Button variant="primary" size="sm" onClick={() => setStep(5)} rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>Continue with Manual Milestones</Button>
+              <Button variant="primary" size="sm" onClick={() => setStep(5)} rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>Continue with Milestones</Button>
             </div>
           </div>
         </div>
@@ -421,6 +514,10 @@ export const ClientNewProjectPage: React.FC = () => {
       {step === 5 && (
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
           <h2 className="text-xl font-bold text-white">Step 5: Project Summary Review</h2>
+
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4 text-xs text-blue-100">
+            <strong className="text-blue-300">No-Block Parallel Milestones enabled.</strong> Once all funds are secured, the freelancer may build and submit any funded milestone independently; each submission keeps its own review and fund state.
+          </div>
 
           <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4 text-xs">
             <div className="flex justify-between border-b border-slate-800 pb-3">
@@ -439,19 +536,30 @@ export const ClientNewProjectPage: React.FC = () => {
               <span className="text-slate-400">Deadline:</span>
               <span className="font-bold text-white">{deadline}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-800 pb-3">
-              <span className="text-slate-400">Milestones:</span>
-              <span className="font-bold text-white">{milestones.length}</span>
+            <div className="border-b border-slate-800 pb-3 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Milestones & Flex-Review Windows:</span>
+                <span className="font-bold text-white">{milestones.length} Milestones</span>
+              </div>
+              <div className="space-y-1.5 pt-1">
+                {milestones.map((m, idx) => (
+                  <div key={idx} className="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg text-[11px]">
+                    <span className="text-slate-300 font-medium">#{idx + 1} {m.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-emerald-400 font-bold">₹{Number(m.amount).toLocaleString()}</span>
+                      <span className="rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] text-blue-300 font-semibold flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-blue-400" />
+                        {checkpointReviewDays}d review
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">Freelancer:</span>
-              <span className="font-bold text-white">
-                {access === 'invited'
-                  ? `${SEED_FREELANCERS.find((f) => f.id === selectedFreelancerId)?.name} (Selected)`
-                  : 'Open to verified freelancers'}
-              </span>
-            </div>
-            {access === 'open' && <div className="flex justify-between border-b border-slate-800 pb-3"><span className="text-slate-400">Profile deadline:</span><span className="font-bold text-emerald-400">{applicationDeadline}</span></div>}
+            <div className="flex justify-between border-b border-slate-800 pb-3"><span className="text-slate-400">Checkpoint review:</span><span className="font-bold text-white">{checkpointReviewDays} days</span></div>
+            <div className="flex justify-between border-b border-slate-800 pb-3"><span className="text-slate-400">Final review:</span><span className="font-bold text-white">{finalReviewDays} days</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Freelancer:</span><span className="font-bold text-white">{access === 'invited' ? `${SEED_FREELANCERS.find((freelancer) => freelancer.id === selectedFreelancerId)?.name} (Selected)` : 'Open to verified freelancers'}</span></div>
+            {access === 'open' && <div className="flex justify-between border-t border-slate-800 pt-3"><span className="text-slate-400">Profile deadline:</span><span className="font-bold text-emerald-400">{applicationDeadline}</span></div>}
           </div>
 
           {/* AI Summary in Review */}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Award, ArrowRight, Sparkles, LoaderCircle, X } from 'lucide-react';
 import { SEED_FREELANCERS } from '../../mock/seedData';
@@ -21,6 +21,12 @@ export const FreelancersDirectoryPage: React.FC = () => {
   const [aiError, setAiError] = useState('');
   const [isAiSearching, setIsAiSearching] = useState(false);
   const currentUser = useAuthStore((state) => state.currentUser);
+  const users = useAuthStore((state) => state.users);
+  const fetchUsers = useAuthStore((state) => state.fetchUsers);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const categories = ['All', 'Web Development', 'Mobile Apps', 'AI & Data Science', 'UI/UX Design'];
 
@@ -37,8 +43,16 @@ export const FreelancersDirectoryPage: React.FC = () => {
     setSearchParams(newParams);
   };
 
+  const directoryFreelancers = useMemo(() => {
+    const byId = new Map(SEED_FREELANCERS.map((freelancer) => [freelancer.id, freelancer]));
+    users
+      .filter((user) => user.role === 'freelancer')
+      .forEach((user) => byId.set(user.id, user));
+    return [...byId.values()];
+  }, [users]);
+
   const filteredFreelancers = useMemo(() => {
-    return SEED_FREELANCERS.filter((freelancer) => {
+    return directoryFreelancers.filter((freelancer) => {
       const q = searchTerm.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -64,7 +78,7 @@ export const FreelancersDirectoryPage: React.FC = () => {
 
       return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [directoryFreelancers, searchTerm, selectedCategory]);
 
   const displayedFreelancers = aiResults ? aiResults.map((result) => result.freelancer) : filteredFreelancers;
   const recommendationById = new Map(aiResults?.map((result) => [result.freelancer.id, result]) || []);

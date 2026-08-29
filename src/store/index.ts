@@ -25,6 +25,15 @@ import { api } from '../services/api';
 
 const applicationDeadlineHasPassed = (deadline?: string) =>
   Boolean(deadline) && new Date() > new Date(`${deadline}T23:59:59.999`);
+const CANCELLATION_KILL_FEE_RATE = 0.3;
+
+const deriveProjectFundState = (amountInCustody: number, amountFrozen: number, amountWithdrawable: number, amountRefunded: number): FundState => {
+  if (amountFrozen > 0) return 'FROZEN';
+  if (amountWithdrawable > 0) return 'WITHDRAWABLE';
+  if (amountInCustody > 0) return 'IN_CUSTODY';
+  if (amountRefunded > 0) return 'REFUNDED';
+  return 'PAID';
+};
 
 const createProfileApplication = (freelancer: User): FreelancerApplication => ({
   id: `app_${Date.now()}`,
@@ -77,7 +86,7 @@ interface AuthState {
   loginAsDemoUser: (role: UserRole) => User;
   logout: () => void;
   switchRole: (role: UserRole) => void;
-  updateProfile: (updates: Partial<User>) => void;
+  updateProfile: (updates: Partial<User>) => Promise<User>;
   fetchUsers: () => Promise<void>;
 }
 
@@ -109,10 +118,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const user = SEED_USERS[role] || SEED_USERS.client;
     set({ currentUser: user });
   },
-  updateProfile: (updates: Partial<User>) => {
-    const updated = { ...get().currentUser, ...updates };
-    set({ currentUser: updated });
-    api.updateProfile(updated.id, updates).catch(() => {});
+  updateProfile: async (updates: Partial<User>) => {
+    const updated = await api.updateProfile(get().currentUser.id, updates);
+    set({
+      currentUser: updated,
+      users: [updated, ...get().users.filter((user) => user.id !== updated.id)],
+    });
+    return updated;
   },
   fetchUsers: async () => {
     try {
@@ -286,6 +298,7 @@ interface ProjectState {
   ) => void;
   toggleUserBlocked: (userId: string) => void;
   rateFreelancer: (projectId: string, rating: number, review: string, client: User) => void;
+  cancelProject: (projectId: string, customer: User, reason: string) => boolean;
   sendUserWarning: (target: User, reason: string) => void;
   resetAll: () => void;
 }
@@ -371,6 +384,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       amountWithdrawable: 0,
       amountPaid: 0,
       amountRefunded: 0,
+      checkpointReviewDays: projectData.checkpointReviewDays || 7,
+      finalReviewDays: projectData.finalReviewDays || 7,
+      deliverables: projectData.deliverables || (projectData.milestones || []).flatMap((milestone) =>
+        (milestone.deliverables || milestone.acceptanceCriteria || []).map((description, index) => ({
+          id: `del_${milestone.id}_${index + 1}`,
+          description,
+          milestoneId: milestone.id,
+          appliesTo: 'CHECKPOINT' as const,
+          status: 'PENDING' as const,
+        }))
+      ),
+      deliverablesLockedAt: new Date().toISOString(),
       currentMilestoneIndex: 0,
       inactivityDays: 0,
       autoUnlockEligible: false,
@@ -509,13 +534,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   submitCheckpoint: (projectId, milestoneId, submissionData) => {
+    const targetProject = get().projects.find((project) => project.id === projectId);
+    const targetMilestone = targetProject?.milestones.find((milestone) => milestone.id === milestoneId);
+    const existingSubmission = targetProject?.submissions.find((submission) => submission.milestoneId === milestoneId);
+    // One milestone has one demo ticket. A submitted ticket freezes this milestone;
+    // the freelancer can work on another IN_CUSTODY milestone, never resubmit this one.
+    if (!targetMilestone || targetMilestone.fundState !== 'IN_CUSTODY' || existingSubmission) return;
+
     const subId = `sub_${Date.now()}`;
+    const completedDeliverableIds = submissionData.completedDeliverableIds || [];
+    const relevantDeliverables = targetProject?.deliverables.filter((item) => !item.milestoneId || item.milestoneId === milestoneId) || [];
+    const scopeComplete = relevantDeliverables.length > 0 && relevantDeliverables.every((item) => completedDeliverableIds.includes(item.id) || item.status === 'COMPLETED');
+    const reviewDays = targetMilestone.reviewDays || targetProject?.checkpointReviewDays || 7;
     const newSubmission: CheckpointSubmission = {
       ...submissionData,
       id: subId,
       milestoneId,
       submittedAt: new Date().toISOString(),
       status: 'under_review',
+      completedDeliverableIds,
+      scopeComplete,
+      reviewDays,
+      reviewDueAt: new Date(Date.now() + reviewDays * 24 * 60 * 60 * 1000).toISOString(),
     };
 
     set((state) => {
@@ -526,13 +566,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           m.id === milestoneId ? { ...m, status: 'submitted' as const, fundState: 'FROZEN' as const } : m
         );
         const milestoneAmount = p.milestones.find((m) => m.id === milestoneId)?.amount || 0;
+        const updatedDeliverables = p.deliverables.map((item) => completedDeliverableIds.includes(item.id)
+          ? { ...item, status: 'COMPLETED' as const, markedCompleteAt: new Date().toISOString() }
+          : item);
 
+        const amountInCustody = Math.max(0, p.amountInCustody - milestoneAmount);
+        const amountFrozen = p.amountFrozen + milestoneAmount;
         return {
           ...p,
-          fundState: 'FROZEN' as FundState,
-          amountInCustody: Math.max(0, p.amountInCustody - milestoneAmount),
-          amountFrozen: p.amountFrozen + milestoneAmount,
+          fundState: deriveProjectFundState(amountInCustody, amountFrozen, p.amountWithdrawable, p.amountRefunded),
+          amountInCustody,
+          amountFrozen,
           milestones: updatedMilestones,
+          deliverables: updatedDeliverables,
           submissions: [...p.submissions, newSubmission],
           lastActivityAt: new Date().toISOString(),
           inactivityDays: 0,
@@ -579,6 +625,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   approveCheckpoint: (projectId, milestoneId) => {
+    const targetProject = get().projects.find((project) => project.id === projectId);
+    const targetMilestone = targetProject?.milestones.find((milestone) => milestone.id === milestoneId);
+    const submittedTicket = targetProject?.submissions.find((submission) => submission.milestoneId === milestoneId && submission.status === 'under_review');
+    // Approval is the only path to payout, and it can happen exactly once per ticket.
+    if (!targetMilestone || targetMilestone.fundState !== 'FROZEN' || !submittedTicket) return;
+
     set((state) => {
       const projects = state.projects.map((p) => {
         if (p.id !== projectId) return p;
@@ -598,12 +650,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         const allApproved = updatedMilestones.every((m) => m.status === 'approved');
 
+        const amountFrozen = Math.max(0, p.amountFrozen - milestoneAmount);
+        const amountWithdrawable = p.amountWithdrawable + milestoneAmount;
         return {
           ...p,
           status: allApproved ? ('completed' as const) : p.status,
-          fundState: 'WITHDRAWABLE' as FundState,
-          amountFrozen: Math.max(0, p.amountFrozen - milestoneAmount),
-          amountWithdrawable: p.amountWithdrawable + milestoneAmount,
+          fundState: deriveProjectFundState(p.amountInCustody, amountFrozen, amountWithdrawable, p.amountRefunded),
+          amountFrozen,
+          amountWithdrawable,
           milestones: updatedMilestones,
           submissions: updatedSubmissions,
           lastActivityAt: new Date().toISOString(),
@@ -649,6 +703,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
 
     api.approveCheckpoint(projectId, milestoneId).catch(() => {});
+  },
+
+  cancelProject: (projectId, customer, reason) => {
+    const project = get().projects.find((item) => item.id === projectId);
+    if (!project || project.clientId !== customer.id || (project.status !== 'active' && project.status !== 'in_review')) return false;
+    const nextMilestone = project.milestones.find((milestone) => milestone.fundState === 'IN_CUSTODY');
+    if (!nextMilestone) return false;
+    const killFee = Math.floor(nextMilestone.amount * CANCELLATION_KILL_FEE_RATE);
+    const refundAmount = Math.max(0, project.amountInCustody - killFee);
+    const timestamp = new Date().toISOString();
+
+    set((state) => ({
+      projects: state.projects.map((item) => item.id === projectId ? {
+        ...item,
+        status: 'cancelled_by_customer',
+        amountInCustody: 0,
+        amountFrozen: item.amountFrozen + killFee,
+        amountRefunded: item.amountRefunded + refundAmount,
+        fundState: deriveProjectFundState(0, item.amountFrozen + killFee, item.amountWithdrawable, item.amountRefunded + refundAmount),
+        milestones: item.milestones.map((milestone) => milestone.id === nextMilestone.id ? { ...milestone, status: 'failed', fundState: 'REFUNDED', cancellationKillFee: killFee } : milestone),
+        lastActivityAt: timestamp,
+      } : item),
+    }));
+
+    useLedgerStore.getState().addEntry({ projectId, projectTitle: project.title, actorId: customer.id, actorName: customer.name, actorRole: 'client', eventType: 'CANCELLATION_KILL_FEE', previousState: 'IN_CUSTODY', newState: 'FROZEN', amount: killFee, referenceId: `CANCEL_KILL_${Date.now()}`, notes: `Customer cancellation: ₹${killFee.toLocaleString()} frozen as builder compensation for ${nextMilestone.title}. Reason: ${reason || 'Not provided'}` });
+    useLedgerStore.getState().addEntry({ projectId, projectTitle: project.title, actorId: customer.id, actorName: customer.name, actorRole: 'client', eventType: 'CANCELLATION_REFUND', previousState: 'IN_CUSTODY', newState: 'REFUNDED', amount: refundAmount, referenceId: `CANCEL_REFUND_${Date.now()}`, notes: `Customer cancellation refund after kill fee. Reason: ${reason || 'Not provided'}` });
+    useMessageStore.getState().addSystemEvent(projectId, `CUSTOMER CANCELLATION: ₹${killFee.toLocaleString()} frozen as builder compensation; ₹${refundAmount.toLocaleString()} refunded to customer.`, 'CANCELLATION_KILL_FEE');
+    if (project.freelancerId) useNotificationStore.getState().addNotification({ userId: project.freelancerId, type: 'payment', title: 'Customer cancellation compensation secured', description: `₹${killFee.toLocaleString()} was frozen as your cancellation protection for "${project.title}".`, link: '/freelancer/income' });
+    api.cancelProject(projectId, customer.id, reason).then((savedProject) => set((state) => ({ projects: state.projects.map((item) => item.id === projectId ? savedProject : item) }))).catch(() => {});
+    return true;
   },
 
   rejectWith90_10Resolution: (projectId, milestoneId) => {

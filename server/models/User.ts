@@ -5,6 +5,8 @@ export interface IUser {
   name: string;
   email: string;
   role: 'client' | 'freelancer' | 'admin';
+  roles?: ('client' | 'freelancer' | 'admin')[];
+  freelancerRoles?: string[];
   passwordHash?: string;
   emailVerified?: boolean;
   otpCode?: string;
@@ -48,6 +50,8 @@ const UserSchema = new Schema<IUser>(
     authProvider: { type: String, enum: ['email', 'google'], default: 'email' },
     googleId: { type: String },
     role: { type: String, enum: ['client', 'freelancer', 'admin'], required: true },
+    roles: { type: [String], default: [] },
+    freelancerRoles: { type: [String], default: [] },
     avatar: { type: String },
     title: { type: String },
     bio: { type: String },

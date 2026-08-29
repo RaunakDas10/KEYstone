@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Users, ShieldCheck, Mail } from 'lucide-react';
-import { SEED_USERS } from '../../mock/seedData';
-import { useProjectStore } from '../../store';
+import { useAuthStore, useProjectStore } from '../../store';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 
 export const AdminUsersPage: React.FC = () => {
-  const userList = Object.values(SEED_USERS);
+  const { users: userList, fetchUsers } = useAuthStore();
   const { blockedUserIds, toggleUserBlocked } = useProjectStore();
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   return (
     <div className="space-y-8">
@@ -51,8 +54,8 @@ export const AdminUsersPage: React.FC = () => {
                     {u.trustScore ? `${u.trustScore} / 100` : 'N/A'}
                   </td>
                   <td className="p-4">
-                    <Badge variant="emerald" icon={<ShieldCheck className="w-3 h-3" />}>
-                      Verified
+                    <Badge variant={u.verified ? 'emerald' : 'amber'} icon={<ShieldCheck className="w-3 h-3" />}>
+                      {u.verified ? 'Verified' : 'Unverified'}
                     </Badge>
                   </td>
                   <td className="p-4 text-slate-400 font-mono">{u.joinedDate}</td>

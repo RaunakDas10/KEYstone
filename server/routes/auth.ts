@@ -7,6 +7,12 @@ const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+const FREELANCER_ROLES = new Set([
+  'Frontend Developer', 'Backend Developer', 'Full-stack Developer', 'Mobile Developer',
+  'UI/UX Designer', 'Product Designer', 'Graphic Designer', 'Data Analyst',
+  'Data Scientist', 'AI/ML Engineer', 'DevOps Engineer', 'QA Engineer',
+  'Content Writer', 'Digital Marketer', 'Project Manager',
+]);
 
 const sanitizeUser = (user: any) => ({
   ...user.toObject(),
@@ -64,12 +70,37 @@ router.get('/users/:id', async (req: Request, res: Response): Promise<void> => {
 
 router.put('/users/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const updated = await UserModel.findOneAndUpdate(
-      { id: req.params.id },
-      { $set: req.body },
-      { new: true, upsert: true }
-    );
-    res.json(updated ? sanitizeUser(updated) : null);
+    const user = await UserModel.findOne({ id: req.params.id });
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    const editableFields = [
+      'name', 'avatar', 'title', 'bio', 'pronouns', 'company', 'location',
+      'website', 'linkedin', 'github', 'instagram', 'xHandle', 'showLocalTime', 'skills', 'freelancerRoles',
+    ];
+    for (const field of editableFields) {
+      if (field in (req.body || {})) {
+        (user as any)[field] = req.body[field];
+      }
+    }
+
+    if ('freelancerRoles' in (req.body || {})) {
+      if (user.role !== 'freelancer') {
+        res.status(403).json({ error: 'Freelancer roles can only be selected by freelancer accounts.' });
+        return;
+      }
+      const requestedRoles: unknown[] = Array.isArray(req.body.freelancerRoles) ? req.body.freelancerRoles : [];
+      if (requestedRoles.some((role) => typeof role !== 'string' || !FREELANCER_ROLES.has(role))) {
+        res.status(400).json({ error: 'One or more selected freelancer roles are invalid.' });
+        return;
+      }
+      user.freelancerRoles = [...new Set(requestedRoles as string[])];
+    }
+
+    await user.save();
+    res.json(sanitizeUser(user));
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

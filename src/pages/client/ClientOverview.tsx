@@ -140,9 +140,9 @@ export const ClientOverview: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
-                  <Link to={`/client/projects/${project.id}`} className="w-full md:w-auto">
+                  <Link to={`/client/projects/${project.id}?escrow=cancel`} className="w-full md:w-auto">
                     <Button variant="primary" size="sm" className="w-full" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                      Manage Escrow
+                      Manage Escrow & Cancel
                     </Button>
                   </Link>
                 </div>
