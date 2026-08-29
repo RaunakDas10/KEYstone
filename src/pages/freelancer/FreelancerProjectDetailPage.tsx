@@ -23,7 +23,7 @@ import { Badge } from '../../components/ui/Badge';
 
 export const FreelancerProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { projects, submitCheckpoint, reportUser, applyToProject } = useProjectStore();
+  const { projects, submitCheckpoint, reportUser, applyToProject, autoUnlockProject } = useProjectStore();
   const { currentUser } = useAuthStore();
   const { messages, sendMessage } = useMessageStore();
 
@@ -189,16 +189,23 @@ export const FreelancerProjectDetailPage: React.FC = () => {
 
                 <p className="text-slate-300">{sub.description}</p>
 
-                <div className="flex gap-3 pt-2">
-                  {sub.demoUrl && (
-                    <a href={sub.demoUrl} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1 font-semibold">
-                      Live Demo Link <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
-                  {sub.githubUrl && (
-                    <a href={sub.githubUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:underline flex items-center gap-1 font-semibold">
-                      Repository <GitBranch className="w-3 h-3" />
-                    </a>
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+                  <div className="flex gap-3">
+                    {sub.demoUrl && (
+                      <a href={sub.demoUrl} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1 font-semibold">
+                        Live Demo Link <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                    {sub.githubUrl && (
+                      <a href={sub.githubUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:underline flex items-center gap-1 font-semibold">
+                        Repository <GitBranch className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                  {project.fundState !== 'WITHDRAWABLE' && (
+                    <Button variant="outline" size="sm" onClick={() => autoUnlockProject(project.id)} leftIcon={<Clock className="w-3.5 h-3.5 text-amber-400" />}>
+                      Trigger 7-Day Client Inactivity Auto-Unlock
+                    </Button>
                   )}
                 </div>
               </div>

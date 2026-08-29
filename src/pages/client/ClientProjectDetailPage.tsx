@@ -30,7 +30,7 @@ import { analyzeProject } from '../../services/ai/aiService';
 
 export const ClientProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser, rateFreelancer, selectFreelancer } = useProjectStore();
+  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser, rateFreelancer, selectFreelancer, autoUnlockProject } = useProjectStore();
   const { currentUser } = useAuthStore();
 
   const project = projects.find((p) => p.id === id) || projects[0];
@@ -303,13 +303,17 @@ export const ClientProjectDetailPage: React.FC = () => {
             {/* Action Buttons */}
             {project.fundState !== 'WITHDRAWABLE' && project.fundState !== 'REFUNDED' && (
               <div className="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button variant="emerald" size="md" onClick={() => setIsApproveModalOpen(true)} leftIcon={<CheckCircle2 className="w-4 h-4" />}>
                     Approve Checkpoint & Release Funds
                   </Button>
 
                   <Button variant="outline" size="md" onClick={() => setIs9010ModalOpen(true)} leftIcon={<RefreshCw className="w-4 h-4 text-purple-400" />}>
                     Trigger 90/10 Resolution
+                  </Button>
+
+                  <Button variant="outline" size="md" onClick={() => autoUnlockProject(project.id)} leftIcon={<Clock className="w-4 h-4 text-amber-400" />}>
+                    Simulate 7-Day Inactivity Auto-Release & Refund
                   </Button>
                 </div>
 

@@ -735,13 +735,25 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const projects = state.projects.map((p) => {
         if (p.id !== projectId) return p;
 
-        const frozenOrCustody = p.amountFrozen > 0 ? p.amountFrozen : p.amountInCustody;
+        const currentMs = p.milestones[p.currentMilestoneIndex] || p.milestones.find((m) => m.status === 'submitted') || p.milestones[0];
+        const milestoneAmount = currentMs?.amount || (p.amountFrozen > 0 ? p.amountFrozen : p.amountInCustody);
+        const remainingCustody = Math.max(0, p.amountInCustody - milestoneAmount);
+
+        const updatedMilestones = p.milestones.map((m) =>
+          m.id === currentMs?.id
+            ? { ...m, status: 'approved' as const, fundState: 'WITHDRAWABLE' as const }
+            : m
+        );
+
         return {
           ...p,
+          status: 'completed' as const,
           fundState: 'WITHDRAWABLE' as FundState,
           amountInCustody: 0,
           amountFrozen: 0,
-          amountWithdrawable: p.amountWithdrawable + frozenOrCustody,
+          amountWithdrawable: p.amountWithdrawable + milestoneAmount,
+          amountRefunded: p.amountRefunded + remainingCustody,
+          milestones: updatedMilestones,
           autoUnlockEligible: false,
           inactivityDays: 7,
           lastActivityAt: new Date().toISOString(),
@@ -752,24 +764,27 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     const project = get().projects.find((p) => p.id === projectId);
     if (project) {
-      const amount = project.amountWithdrawable;
+      const currentMs = project.milestones[project.currentMilestoneIndex] || project.milestones.find((m) => m.status === 'submitted') || project.milestones[0];
+      const milestoneAmount = currentMs?.amount || project.amountWithdrawable;
+      const remainingCustody = project.amountRefunded;
+
       useLedgerStore.getState().addEntry({
         projectId,
         projectTitle: project.title,
         actorId: 'system',
-        actorName: 'KEYStone Auto-Unlock Daemon',
+        actorName: 'KEYStone 7-Day Inactivity Protocol Engine',
         actorRole: 'admin',
         eventType: 'AUTO_UNLOCK_EXECUTED',
         previousState: 'FROZEN',
         newState: 'WITHDRAWABLE',
-        amount,
+        amount: milestoneAmount,
         referenceId: `AUTO_UNLOCK_${Date.now()}`,
-        notes: 'Client unresponsive for 7 days. Automated inactivity protection triggered. Funds released to freelancer.',
+        notes: `7-Day Client Inactivity Protection: ₹${milestoneAmount.toLocaleString()} released to Freelancer withdrawable balance; remaining ₹${remainingCustody.toLocaleString()} custody refunded to Client bank account.`,
       });
 
       useMessageStore.getState().addSystemEvent(
         projectId,
-        `7-DAY INACTIVITY PROTECTION TRIGGERED: Funds automatically moved to WITHDRAWABLE state.`,
+        `7-DAY CLIENT INACTIVITY EXECUTED: ₹${milestoneAmount.toLocaleString()} released to Freelancer withdrawable balance, remaining ₹${remainingCustody.toLocaleString()} refunded to Client bank account.`,
         'AUTO_UNLOCK_EXECUTED'
       );
 
@@ -777,8 +792,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         useNotificationStore.getState().addNotification({
           userId: project.freelancerId,
           type: 'payment',
-          title: '7-Day Inactivity Auto-Unlock',
-          description: `₹${amount.toLocaleString()} automatically unlocked to your balance for "${project.title}".`,
+          title: '7-Day Client Inactivity Auto-Unlock',
+          description: `₹${milestoneAmount.toLocaleString()} from "${project.title}" automatically released to your withdrawable balance.`,
           link: '/freelancer/income',
         });
       }
@@ -786,8 +801,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       useNotificationStore.getState().addNotification({
         userId: project.clientId,
         type: 'system',
-        title: '7-Day Inactivity Auto-Unlock Executed',
-        description: `Funds for "${project.title}" released to freelancer due to 7 days of review inactivity.`,
+        title: '7-Day Inactivity Auto-Unlock & Refund Executed',
+        description: `₹${milestoneAmount.toLocaleString()} released to freelancer and remaining ₹${remainingCustody.toLocaleString()} custody refunded to your bank account due to 7 days of review inactivity.`,
         link: `/client/projects/${project.id}`,
       });
     }
