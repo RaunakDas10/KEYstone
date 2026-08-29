@@ -38,10 +38,31 @@ export const api = {
   // Auth / Users
   getUsers: () => request<User[]>('/auth/users'),
   getUser: (id: string) => request<User>(`/auth/users/${id}`),
-  login: (role?: UserRole, userId?: string) =>
-    request<User>('/auth/login', {
+  getGoogleClientId: () => request<{ clientId: string }>('/auth/google-client-id'),
+  register: (payload: { name: string; email: string; password: string; role?: UserRole }) =>
+    request<{ message: string; email: string; userId: string }>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ role, userId }),
+      body: JSON.stringify(payload),
+    }),
+  verifyOtp: (email: string, otp: string) =>
+    request<{ message: string; user: User }>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    }),
+  sendOtp: (email: string) =>
+    request<{ message: string; email: string }>('/auth/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  login: (payload: { email: string; password: string }) =>
+    request<{ user: User; message: string }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  googleLogin: (credential: string, role?: UserRole) =>
+    request<{ user: User; message: string }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential, role }),
     }),
   updateProfile: (id: string, updates: Partial<User>) =>
     request<User>(`/auth/users/${id}`, {

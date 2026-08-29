@@ -5,6 +5,13 @@ export interface IUser {
   name: string;
   email: string;
   role: 'client' | 'freelancer' | 'admin';
+  passwordHash?: string;
+  emailVerified?: boolean;
+  otpCode?: string;
+  otpExpiresAt?: Date;
+  otpLastSentAt?: Date;
+  authProvider?: 'email' | 'google';
+  googleId?: string;
   avatar?: string;
   title?: string;
   bio?: string;
@@ -32,7 +39,14 @@ const UserSchema = new Schema<IUser>(
   {
     id: { type: String, required: true, unique: true, index: true },
     name: { type: String, required: true },
-    email: { type: String, required: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    passwordHash: { type: String },
+    emailVerified: { type: Boolean, default: false },
+    otpCode: { type: String },
+    otpExpiresAt: { type: Date },
+    otpLastSentAt: { type: Date },
+    authProvider: { type: String, enum: ['email', 'google'], default: 'email' },
+    googleId: { type: String },
     role: { type: String, enum: ['client', 'freelancer', 'admin'], required: true },
     avatar: { type: String },
     title: { type: String },

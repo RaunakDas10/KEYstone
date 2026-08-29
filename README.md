@@ -36,9 +36,23 @@ MONGODB_URI=mongodb://localhost:27017/keystone
 GEMINI_API_KEY=your_server_only_gemini_key
 # Optional; defaults to gemini-2.5-flash
 GEMINI_FAST_MODEL=gemini-2.5-flash
+# Required for email/password accounts
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_gmail_app_password
+SMTP_FROM=your_email@gmail.com
+AUTH_OTP_SECRET=a_long_random_secret
+# Required for Google Sign-In
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
 # Or use MongoDB Atlas:
 # MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/keystone?retryWrites=true&w=majority
 ```
+
+Email/password registration sends a six-digit code through SMTP. Users can only
+sign in after entering that code. Google Sign-In verifies the Google ID token on
+the server; add `http://localhost:5173` and your deployed domain to the OAuth
+client's **Authorized JavaScript origins** in Google Cloud Console.
 
 ### 2. Install Dependencies
 ```bash

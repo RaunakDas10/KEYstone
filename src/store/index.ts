@@ -72,7 +72,9 @@ interface AuthState {
   currentUser: User;
   isAuthenticated: boolean;
   users: User[];
-  login: (role: UserRole) => void;
+  login: (payload: { email: string; password: string }) => Promise<User>;
+  loginWithGoogle: (credential: string, role?: UserRole) => Promise<User>;
+  loginAsDemoUser: (role: UserRole) => User;
   logout: () => void;
   switchRole: (role: UserRole) => void;
   updateProfile: (updates: Partial<User>) => void;
@@ -81,20 +83,31 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   currentUser: SEED_USERS.client,
-  isAuthenticated: true,
+  isAuthenticated: false,
   users: Object.values(SEED_USERS),
-  login: (role: UserRole) => {
+  login: async (payload: { email: string; password: string }) => {
+    const response = await api.login(payload);
+    const user = response.user;
+    set({ currentUser: user, isAuthenticated: true, users: [user, ...get().users.filter((item) => item.id !== user.id)] });
+    return user;
+  },
+  loginWithGoogle: async (credential: string, role?: UserRole) => {
+    const response = await api.googleLogin(credential, role);
+    const user = response.user;
+    set({ currentUser: user, isAuthenticated: true, users: [user, ...get().users.filter((item) => item.id !== user.id)] });
+    return user;
+  },
+  loginAsDemoUser: (role: UserRole) => {
     const user = SEED_USERS[role] || SEED_USERS.client;
     set({ currentUser: user, isAuthenticated: true });
-    api.login(role).catch(() => {});
+    return user;
   },
   logout: () => {
-    set({ isAuthenticated: false });
+    set({ currentUser: SEED_USERS.client, isAuthenticated: false });
   },
   switchRole: (role: UserRole) => {
     const user = SEED_USERS[role] || SEED_USERS.client;
     set({ currentUser: user });
-    api.login(role).catch(() => {});
   },
   updateProfile: (updates: Partial<User>) => {
     const updated = { ...get().currentUser, ...updates };

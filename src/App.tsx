@@ -14,6 +14,7 @@ import { HowItWorksPage } from './pages/public/HowItWorksPage';
 import { SecurityPage } from './pages/public/SecurityPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { VerifyEmailPage } from './pages/auth/VerifyEmailPage';
 
 // Client Pages
 import { ClientOverview } from './pages/client/ClientOverview';
@@ -106,6 +107,7 @@ export function App() {
           <Route path="/standin" element={<StandInPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<LoginPage />} />
         </Route>
 
