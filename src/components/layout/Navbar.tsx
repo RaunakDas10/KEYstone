@@ -11,7 +11,7 @@ export const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const guestOnlyView = ['/standin', '/register', '/login'].includes(location.pathname);
+  const guestOnlyView = ['/standin', '/register', '/login', '/marketplace', '/security', '/how-it-works'].includes(location.pathname);
   const showAccount = isAuthenticated && !guestOnlyView;
 
   const unreadCount = notifications.filter((n) => (n.userId === currentUser.id || n.userId === 'all') && !n.read).length;

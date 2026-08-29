@@ -106,14 +106,6 @@ export function App() {
           <Route path="/forgot-password" element={<LoginPage />} />
         </Route>
 
-        {/* Full-Width Talent Discovery Dashboard for Authenticated Users */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<FullWidthLayout />}>
-            <Route path="/client/dashboard" element={<FreelancersDirectoryPage />} />
-            <Route path="/freelancer/dashboard" element={<FreelancersDirectoryPage />} />
-          </Route>
-        </Route>
-
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/profile" element={<AccountProfilePage />} />
@@ -123,6 +115,7 @@ export function App() {
         {/* Private Client Workspace Routes */}
         <Route element={<ProtectedRoute allowedRoles={['client']} />}>
           <Route element={<DashboardLayout />}>
+            <Route path="/client/dashboard" element={<ClientOverview />} />
             <Route path="/client/overview" element={<ClientOverview />} />
             <Route path="/client/projects" element={<ClientOverview />} />
             <Route path="/client/projects/new" element={<ClientNewProjectPage />} />
@@ -137,6 +130,7 @@ export function App() {
         {/* Private Freelancer Workspace Routes */}
         <Route element={<ProtectedRoute allowedRoles={['freelancer']} />}>
           <Route element={<DashboardLayout />}>
+            <Route path="/freelancer/dashboard" element={<FreelancerOverview />} />
             <Route path="/freelancer/overview" element={<FreelancerOverview />} />
             <Route path="/freelancer/projects" element={<FreelancerOverview />} />
             <Route path="/freelancer/projects/:id" element={<FreelancerProjectDetailPage />} />

@@ -87,9 +87,11 @@ export const ClientOverview: React.FC = () => {
 
         {clientProjects[0] && (
           <FundLifecycleVisualizer
-            state={clientProjects[0].fundState}
-            amount={clientProjects[0].budget}
-            inactivityDays={clientProjects[0].inactivityDays}
+            currentState={clientProjects[0].fundState}
+            amountCustody={clientProjects[0].amountInCustody}
+            amountFrozen={clientProjects[0].amountFrozen}
+            amountWithdrawable={clientProjects[0].amountWithdrawable}
+            totalBudget={clientProjects[0].budget}
           />
         )}
       </div>
@@ -127,7 +129,7 @@ export const ClientOverview: React.FC = () => {
 
               <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
                 <Link to={`/client/projects/${project.id}`} className="w-full md:w-auto">
-                  <Button variant="primary" size="sm" fullWidth rightIcon={<ArrowRight className="w-4 h-4" />}>
+                  <Button variant="primary" size="sm" className="w-full" rightIcon={<ArrowRight className="w-4 h-4" />}>
                     Manage Escrow
                   </Button>
                 </Link>
