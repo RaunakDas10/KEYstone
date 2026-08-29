@@ -518,8 +518,8 @@ export const ClientNewProjectPage: React.FC = () => {
                   <span className="font-bold text-white">₹{budget.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>Platform Fee (0% Hackathon):</span>
-                  <span className="font-bold text-emerald-400">₹0</span>
+                  <span>Platform Fee (1% Escrow Protocol):</span>
+                  <span className="font-bold text-blue-400">₹{Math.round(budget * 0.01).toLocaleString()}</span>
                 </div>
                 {aiAnalysis && (
                   <div className="flex justify-between text-slate-400 border-t border-slate-800 pt-2">
@@ -531,7 +531,7 @@ export const ClientNewProjectPage: React.FC = () => {
                 )}
                 <div className="flex justify-between text-white font-bold pt-2 border-t border-slate-800 text-sm">
                   <span>Total Amount Secured:</span>
-                  <span className="font-mono text-blue-400">₹{budget.toLocaleString()}</span>
+                  <span className="font-mono text-blue-400">₹{(budget + Math.round(budget * 0.01)).toLocaleString()}</span>
                 </div>
               </div>
 
@@ -542,7 +542,7 @@ export const ClientNewProjectPage: React.FC = () => {
                 isLoading={isProcessingPayment}
                 onClick={handleSecureFunds}
               >
-                Deposit & Lock ₹{budget.toLocaleString()} in Custody
+                Deposit & Lock ₹{(budget + Math.round(budget * 0.01)).toLocaleString()} in Custody
               </Button>
 
               <Button variant="outline" size="sm" className="w-full" onClick={() => setStep(5)}>

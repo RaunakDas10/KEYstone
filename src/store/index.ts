@@ -465,8 +465,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       !project ||
       !application ||
       project.access !== 'open' ||
-      project.status !== 'selection_pending' ||
-      !applicationDeadlineHasPassed(project.applicationDeadline)
+      project.status !== 'selection_pending'
     ) {
       return false;
     }

@@ -17,6 +17,8 @@ import {
   CalendarDays,
   UserCheck,
   Sparkles,
+  Eye,
+  User,
 } from 'lucide-react';
 import { useProjectStore, useAuthStore } from '../../store';
 import { SEED_USERS } from '../../mock/seedData';
@@ -43,6 +45,7 @@ export const ClientProjectDetailPage: React.FC = () => {
   const [reportReason, setReportReason] = useState('');
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [profileModalApp, setProfileModalApp] = useState<FreelancerApplication | null>(null);
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState('');
   const [selectionError, setSelectionError] = useState('');
@@ -106,13 +109,11 @@ export const ClientProjectDetailPage: React.FC = () => {
   const client90Pct = Math.round(totalAmount * 0.9);
   const builder10Pct = Math.round(totalAmount * 0.1);
   const isAwaitingSelection = project.access === 'open' && project.status === 'selection_pending' && !project.freelancerId;
-  const selectionIsOpen = project.applicationDeadline
-    ? new Date() > new Date(`${project.applicationDeadline}T23:59:59.999`)
-    : false;
+  const selectionIsOpen = true;
 
   const handleSelectFreelancer = async (freelancerId: string) => {
     const selected = await selectFreelancer(project.id, freelancerId);
-    if (!selected) setSelectionError('The submission deadline must pass before you can select an applicant.');
+    if (!selected) setSelectionError('Failed to select freelancer. Please try again.');
   };
 
   if (isAwaitingSelection) {
@@ -126,9 +127,9 @@ export const ClientProjectDetailPage: React.FC = () => {
               <h1 className="text-2xl sm:text-3xl font-black text-white">{project.title}</h1>
               <p className="mt-2 text-xs text-slate-400">Funds are secured; work remains locked until you select one submitted freelancer profile.</p>
             </div>
-            <div className={`rounded-2xl border px-4 py-3 text-xs ${selectionIsOpen ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-300">
               <span className="flex items-center gap-2 font-bold"><CalendarDays className="h-4 w-4" /> Profile deadline: {project.applicationDeadline || 'Not set'}</span>
-              <p className="mt-1">{selectionIsOpen ? 'Selection is now open.' : 'Selection unlocks after this date expires.'}</p>
+              <p className="mt-1">Selection is active! You can review profiles and select your freelancer anytime.</p>
             </div>
           </div>
         </div>
@@ -136,8 +137,96 @@ export const ClientProjectDetailPage: React.FC = () => {
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <div className="mb-6 flex items-center justify-between"><div><h2 className="flex items-center gap-2 text-xl font-bold text-white"><Users className="h-5 w-5 text-blue-400" /> Freelancer profiles</h2><p className="mt-1 text-xs text-slate-400">Review the submitted profile snapshots before assigning the workspace.</p></div><span className="text-sm font-mono font-bold text-white">{applications.length} submitted</span></div>
           {selectionError && <p className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">{selectionError}</p>}
-          {applications.length ? <div className="grid gap-4 md:grid-cols-2">{applications.map((application) => <article key={application.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-5"><div className="flex items-start gap-3"><img src={application.freelancerAvatar} alt="" className="h-12 w-12 rounded-xl object-cover" /><div className="min-w-0"><h3 className="font-bold text-white">{application.freelancerName}</h3><p className="text-xs text-slate-400">{application.freelancerTitle || 'Freelancer'}{application.freelancerPronouns ? ` · ${application.freelancerPronouns}` : ''}</p></div>{application.verified && <span className="ml-auto text-[10px] font-bold text-emerald-400">VERIFIED</span>}</div><p className="mt-4 line-clamp-3 text-xs leading-relaxed text-slate-400">{application.freelancerBio || 'No profile bio provided.'}</p><div className="mt-4 grid gap-2 text-[11px] text-slate-400"><span>Email: <a href={`mailto:${application.freelancerEmail}`} className="text-blue-300 hover:underline">{application.freelancerEmail}</a></span>{application.freelancerCompany && <span>Company: {application.freelancerCompany}</span>}{application.freelancerLocation && <span>Location: {application.freelancerLocation}</span>}<div className="flex flex-wrap gap-x-3 gap-y-1">{application.freelancerWebsite && <a href={application.freelancerWebsite} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">Website</a>}{application.freelancerLinkedin && <a href={application.freelancerLinkedin} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">LinkedIn</a>}{application.freelancerGithub && <a href={application.freelancerGithub} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">GitHub</a>}{application.freelancerInstagram && <a href={application.freelancerInstagram} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">Instagram</a>}{application.freelancerXHandle && <span>X: {application.freelancerXHandle}</span>}</div></div><div className="mt-4 flex flex-wrap gap-1.5">{application.freelancerSkills?.map((skill) => <span key={skill} className="rounded bg-slate-900 px-2 py-1 text-[10px] text-slate-300">{skill}</span>)}</div><div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-4"><span className="text-[11px] text-slate-400">Score {application.trustScore ?? '—'} · {application.projectsCompleted ?? 0} projects</span><Button variant="emerald" size="sm" disabled={!selectionIsOpen} onClick={() => handleSelectFreelancer(application.freelancerId)} leftIcon={<UserCheck className="h-3.5 w-3.5" />}>Select freelancer</Button></div></article>)}</div> : <div className="rounded-2xl border border-slate-800 bg-slate-950 p-10 text-center"><Users className="mx-auto h-8 w-8 text-slate-500" /><h3 className="mt-3 text-sm font-bold text-white">No profiles submitted yet</h3><p className="mt-1 text-xs text-slate-400">Freelancers can submit their profile until {project.applicationDeadline || 'the deadline'}.</p></div>}
+          {applications.length ? <div className="grid gap-4 md:grid-cols-2">{applications.map((application) => <article key={application.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-5"><div className="flex items-start gap-3"><img src={application.freelancerAvatar} alt="" className="h-12 w-12 rounded-xl object-cover" /><div className="min-w-0"><h3 className="font-bold text-white">{application.freelancerName}</h3><p className="text-xs text-slate-400">{application.freelancerTitle || 'Freelancer'}{application.freelancerPronouns ? ` · ${application.freelancerPronouns}` : ''}</p></div>{application.verified && <span className="ml-auto text-[10px] font-bold text-emerald-400">VERIFIED</span>}</div><p className="mt-4 line-clamp-3 text-xs leading-relaxed text-slate-400">{application.freelancerBio || 'No profile bio provided.'}</p><div className="mt-4 grid gap-2 text-[11px] text-slate-400"><span>Email: <a href={`mailto:${application.freelancerEmail}`} className="text-blue-300 hover:underline">{application.freelancerEmail}</a></span>{application.freelancerCompany && <span>Company: {application.freelancerCompany}</span>}{application.freelancerLocation && <span>Location: {application.freelancerLocation}</span>}<div className="flex flex-wrap gap-x-3 gap-y-1">{application.freelancerWebsite && <a href={application.freelancerWebsite} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">Website</a>}{application.freelancerLinkedin && <a href={application.freelancerLinkedin} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">LinkedIn</a>}{application.freelancerGithub && <a href={application.freelancerGithub} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">GitHub</a>}{application.freelancerInstagram && <a href={application.freelancerInstagram} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">Instagram</a>}{application.freelancerXHandle && <span>X: {application.freelancerXHandle}</span>}</div></div><div className="mt-4 flex flex-wrap gap-1.5">{application.freelancerSkills?.map((skill) => <span key={skill} className="rounded bg-slate-900 px-2 py-1 text-[10px] text-slate-300">{skill}</span>)}</div><div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-4"><span className="text-[11px] text-slate-400">Score {application.trustScore ?? '—'} · {application.projectsCompleted ?? 0} projects</span><div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => setProfileModalApp(application)} leftIcon={<Eye className="h-3.5 w-3.5 text-blue-400" />}>See profile</Button><Button variant="emerald" size="sm" onClick={() => handleSelectFreelancer(application.freelancerId)} leftIcon={<UserCheck className="h-3.5 w-3.5" />}>Select freelancer</Button></div></div></article>)}</div> : <div className="rounded-2xl border border-slate-800 bg-slate-950 p-10 text-center"><Users className="mx-auto h-8 w-8 text-slate-500" /><h3 className="mt-3 text-sm font-bold text-white">No profiles submitted yet</h3><p className="mt-1 text-xs text-slate-400">Freelancers can submit their profile until {project.applicationDeadline || 'the deadline'}.</p></div>}
         </div>
+
+        {/* FREELANCER PROFILE PREVIEW MODAL */}
+        {profileModalApp && (
+          <Modal
+            isOpen={!!profileModalApp}
+            onClose={() => setProfileModalApp(null)}
+            title={`Freelancer Profile: ${profileModalApp.freelancerName}`}
+            subtitle={profileModalApp.freelancerTitle || 'Verified Developer'}
+          >
+            <div className="space-y-5 text-xs text-slate-300">
+              <div className="flex items-center gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <img src={profileModalApp.freelancerAvatar} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    {profileModalApp.freelancerName}
+                    {profileModalApp.verified && <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">VERIFIED</span>}
+                  </h3>
+                  <p className="text-xs text-slate-400">{profileModalApp.freelancerTitle}</p>
+                  <p className="mt-1 text-[11px] text-emerald-400 font-semibold">
+                    Trust Score: {profileModalApp.trustScore ?? 98}% · {profileModalApp.projectsCompleted ?? 0} Projects Completed
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-white mb-1">Biography</h4>
+                <p className="bg-slate-950 p-3 rounded-xl border border-slate-800 leading-relaxed">
+                  {profileModalApp.freelancerBio || 'Senior software developer with extensive experience building scalable web and mobile applications.'}
+                </p>
+              </div>
+
+              {profileModalApp.freelancerSkills && profileModalApp.freelancerSkills.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-white mb-2">Technical Skills & Expertise</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profileModalApp.freelancerSkills.map((skill) => (
+                      <span key={skill} className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 text-blue-300 font-medium">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 pt-2 text-[11px]">
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                  <span className="text-slate-500 block">Email Contact:</span>
+                  <a href={`mailto:${profileModalApp.freelancerEmail}`} className="text-blue-400 font-semibold hover:underline">
+                    {profileModalApp.freelancerEmail}
+                  </a>
+                </div>
+                {profileModalApp.hourlyRate && (
+                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <span className="text-slate-500 block">Hourly Rate:</span>
+                    <span className="text-white font-bold font-mono">₹{profileModalApp.hourlyRate.toLocaleString()}/hr</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+                <Link
+                  to={`/freelancers/${profileModalApp.freelancerId}`}
+                  target="_blank"
+                  className="text-blue-400 hover:underline text-xs flex items-center gap-1 font-semibold"
+                >
+                  Open Full Directory Page <ExternalLink className="w-3 h-3" />
+                </Link>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setProfileModalApp(null)}>
+                    Close
+                  </Button>
+                  <Button
+                    variant="emerald"
+                    size="md"
+                    onClick={() => {
+                      const fId = profileModalApp.freelancerId;
+                      setProfileModalApp(null);
+                      handleSelectFreelancer(fId);
+                    }}
+                    leftIcon={<UserCheck className="h-4 w-4" />}
+                  >
+                    Select Freelancer for Project
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
       </div>
     );
   }
