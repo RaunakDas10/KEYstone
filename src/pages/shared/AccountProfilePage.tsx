@@ -14,8 +14,6 @@ const FREELANCER_ROLE_OPTIONS = [
 type ProfileForm = {
   name: string; email: string; avatar: string; title: string; bio: string; company: string;
   location: string; skills: string; showLocalTime: boolean; freelancerRoles: string[];
-  role: 'client' | 'freelancer' | 'admin';
-  roles: ('client' | 'freelancer' | 'admin')[];
 };
 
 const formFromUser = (user: User): ProfileForm => ({
@@ -29,8 +27,6 @@ const formFromUser = (user: User): ProfileForm => ({
   skills: user.skills?.join(', ') || '',
   showLocalTime: user.showLocalTime || false,
   freelancerRoles: user.freelancerRoles || [],
-  role: user.role || 'client',
-  roles: user.roles && user.roles.length > 0 ? user.roles : [user.role || 'client'],
 });
 
 export const AccountProfilePage: React.FC = () => {
@@ -58,17 +54,6 @@ export const AccountProfilePage: React.FC = () => {
     setSaved(false);
   };
 
-  const toggleAccountRole = (role: 'client' | 'freelancer' | 'admin') => {
-    const nextRoles = form.roles.includes(role)
-      ? form.roles.filter((r) => r !== role)
-      : [...form.roles, role];
-    const finalRoles = nextRoles.length > 0 ? nextRoles : [role];
-    updateField('roles', finalRoles);
-    if (!finalRoles.includes(form.role)) {
-      updateField('role', finalRoles[0]);
-    }
-  };
-
   const toggleFreelancerRole = (role: string) => {
     updateField('freelancerRoles', form.freelancerRoles.includes(role)
       ? form.freelancerRoles.filter((item) => item !== role)
@@ -81,8 +66,6 @@ export const AccountProfilePage: React.FC = () => {
     try {
       await updateProfile({
         name: form.name.trim(),
-        role: form.role,
-        roles: form.roles,
         avatar: form.avatar.trim() || undefined,
         title: form.title.trim(),
         bio: form.bio.trim(),
@@ -90,7 +73,7 @@ export const AccountProfilePage: React.FC = () => {
         location: form.location.trim(),
         skills: form.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
         showLocalTime: form.showLocalTime,
-        ...(form.roles.includes('freelancer') || form.role === 'freelancer' ? { freelancerRoles: form.freelancerRoles } : {}),
+        ...(currentUser.role === 'freelancer' ? { freelancerRoles: form.freelancerRoles } : {}),
       });
       setSaved(true);
     } catch (saveError) {
@@ -103,7 +86,7 @@ export const AccountProfilePage: React.FC = () => {
       <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-2xl sm:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-center gap-4"><img src={currentUser.avatar} alt="" className="h-20 w-20 rounded-3xl border-2 border-blue-500/40 object-cover" /><div><div className="flex gap-2"><h1 className="text-2xl font-black text-white sm:text-3xl">{currentUser.name}</h1>{currentUser.verified && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-300">VERIFIED</span>}</div><div className="mt-1 flex items-center gap-2"><span className="text-sm font-semibold text-blue-400">{currentUser.title || `${currentUser.role} account`}</span><span className="rounded bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-300 border border-blue-500/20">{currentUser.role}</span></div></div></div>
-          <div className="grid grid-cols-3 gap-3"><Metric label={projectLabel} value={userProjects.length} /><Metric label="Completed" value={completed || currentUser.projectsCompleted || 0} /><Metric label="Trust score" value={currentUser.trustScore || '—'} accent /></div>
+          <div className="grid grid-cols-3 gap-3"><Metric label={projectLabel} value={userProjects.length} /><Metric label="Completed" value={completed} /><Metric label="Trust score" value={currentUser.trustScore ?? 0} accent /></div>
         </div>
       </div>
 
@@ -129,58 +112,7 @@ export const AccountProfilePage: React.FC = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Account Roles Management */}
-          <section className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl">
-            <SectionTitle icon={<BriefcaseBusiness className="h-5 w-5 text-blue-400" />} title="Account Roles" description="Select your primary workspace view and multiple active platform roles." />
-            
-            <div className="mt-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Primary Active Role (Default Workspace)</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => {
-                    const newRole = e.target.value as 'client' | 'freelancer' | 'admin';
-                    updateField('role', newRole);
-                    if (!form.roles.includes(newRole)) {
-                      updateField('roles', [...form.roles, newRole]);
-                    }
-                  }}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="client">Client (Hire & Post Projects)</option>
-                  <option value="freelancer">Freelancer (Build & Earn)</option>
-                  <option value="admin">Admin (Platform Governance)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">Enabled Roles (Multi-Role Support)</label>
-                <p className="text-[11px] text-slate-400 mb-2">Check all roles that apply to your account:</p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {(['client', 'freelancer', 'admin'] as const).map((r) => (
-                    <label
-                      key={r}
-                      className={`flex cursor-pointer items-center justify-between gap-2 rounded-xl border p-3 text-xs transition-all ${
-                        form.roles.includes(r)
-                          ? 'border-blue-500/40 bg-blue-500/10 text-white font-semibold'
-                          : 'border-slate-800 bg-slate-950/60 text-slate-400'
-                      }`}
-                    >
-                      <span className="capitalize">{r}</span>
-                      <input
-                        type="checkbox"
-                        checked={form.roles.includes(r)}
-                        onChange={() => toggleAccountRole(r)}
-                        className="h-4 w-4 accent-blue-500"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {(form.roles.includes('freelancer') || form.role === 'freelancer') && (
+          {currentUser.role === 'freelancer' && (
             <section className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl">
               <SectionTitle icon={<BriefcaseBusiness className="h-5 w-5 text-purple-400" />} title="Freelancer specializations" description="Select all professional disciplines you offer." />
               <details className="mt-5 rounded-xl border border-slate-800 bg-slate-950">
@@ -211,7 +143,7 @@ export const AccountProfilePage: React.FC = () => {
           <div className="sticky top-20 rounded-3xl border border-blue-500/30 bg-blue-500/10 p-5">
             <div className="flex items-start gap-3">
               <Mail className="mt-0.5 h-5 w-5 text-blue-400" />
-              <p className="text-xs leading-relaxed text-blue-100">Your profile details and selected roles are saved to the database.</p>
+              <p className="text-xs leading-relaxed text-blue-100">Your profile details are saved to the database.</p>
             </div>
             {error && <p className="mt-3 text-xs text-red-200">{error}</p>}
             <Button type="submit" variant="primary" size="md" className="mt-4 w-full" leftIcon={<Save className="h-4 w-4" />}>

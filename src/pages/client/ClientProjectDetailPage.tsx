@@ -191,7 +191,7 @@ export const ClientProjectDetailPage: React.FC = () => {
                   </h3>
                   <p className="text-xs text-slate-400">{profileModalApp.freelancerTitle}</p>
                   <p className="mt-1 text-[11px] text-emerald-400 font-semibold">
-                    Trust Score: {profileModalApp.trustScore ?? 98}% · {profileModalApp.projectsCompleted ?? 0} Projects Completed
+                    Trust Score: {profileModalApp.trustScore ?? 0}% · {profileModalApp.projectsCompleted ?? 0} Projects Completed
                   </p>
                 </div>
               </div>

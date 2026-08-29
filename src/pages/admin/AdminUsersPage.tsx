@@ -51,7 +51,7 @@ export const AdminUsersPage: React.FC = () => {
                     </span>
                   </td>
                   <td className="p-4 font-mono font-bold text-emerald-400">
-                    {u.trustScore ? `${u.trustScore} / 100` : 'N/A'}
+                    {u.trustScore ?? 0} / 100
                   </td>
                   <td className="p-4">
                     <Badge variant={u.verified ? 'emerald' : 'amber'} icon={<ShieldCheck className="w-3 h-3" />}>

@@ -8,14 +8,14 @@ export interface TrustScoreCardProps {
 }
 
 export const TrustScoreCard: React.FC<TrustScoreCardProps> = ({ user, className = '' }) => {
-  const score = user.trustScore || 98;
-  const onTime = user.onTimeRate || 96;
-  const completion = user.completionRate || 98;
-  const dispute = user.disputeRate || 1;
+  const score = user.trustScore ?? 0;
+  const onTime = user.onTimeRate ?? 0;
+  const completion = user.completionRate ?? 0;
+  const dispute = user.disputeRate ?? 0;
 
-  let ratingLabel = 'Excellent';
-  let ratingColor = 'text-emerald-400';
-  let ringColor = 'border-emerald-500';
+  let ratingLabel = 'Building';
+  let ratingColor = 'text-slate-400';
+  let ringColor = 'border-slate-600';
 
   if (score >= 90) {
     ratingLabel = 'Excellent';
@@ -25,7 +25,7 @@ export const TrustScoreCard: React.FC<TrustScoreCardProps> = ({ user, className 
     ratingLabel = 'Good';
     ratingColor = 'text-blue-400';
     ringColor = 'border-blue-500';
-  } else {
+  } else if (score >= 40) {
     ratingLabel = 'Average';
     ratingColor = 'text-amber-400';
     ringColor = 'border-amber-500';
@@ -62,7 +62,7 @@ export const TrustScoreCard: React.FC<TrustScoreCardProps> = ({ user, className 
             <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">Tier 1</span>
           </div>
           <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-            High integrity score calculated from on-time delivery, zero ghosting history, and verified milestone submissions.
+            40 points for a completed profile, plus points for projects taken, completed, and completed on time.
           </p>
         </div>
       </div>

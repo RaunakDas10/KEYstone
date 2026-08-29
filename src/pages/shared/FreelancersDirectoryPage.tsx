@@ -217,25 +217,6 @@ export const FreelancersDirectoryPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Keystone Score Box */}
-                <div className="bg-[#030712] p-3.5 rounded-2xl border border-slate-800/80 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-black text-emerald-400 font-mono text-xs">
-                      {freelancer.trustScore || 98}
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
-                        KEYSTONE SCORE
-                      </span>
-                      <span className="text-xs font-semibold text-emerald-400">Excellent Integrity</span>
-                    </div>
-                  </div>
-                  <div className="text-right text-xs">
-                    <span className="text-slate-400 block text-[9px] uppercase tracking-wider">On-Time Rate</span>
-                    <span className="font-bold text-white font-mono">{freelancer.onTimeRate || 96}%</span>
-                  </div>
-                </div>
-
                 {recommendation && (
                   <div className="rounded-xl border border-violet-500/25 bg-violet-500/10 px-3 py-2.5">
                     <div className="flex items-center justify-between gap-3 mb-1">

@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB, isDBConnected } from './config/db';
 import { seedDatabase } from './seed';
+import { initializeTrustScores } from './services/trustScore';
 
 import authRouter from './routes/auth';
 import projectsRouter from './routes/projects';
@@ -61,6 +62,7 @@ const startServer = async () => {
 
     if (isDBConnected()) {
       await seedDatabase(false);
+      await initializeTrustScores();
     }
   });
 };

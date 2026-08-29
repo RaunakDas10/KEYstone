@@ -27,6 +27,7 @@ export interface IUser {
   xHandle?: string;
   showLocalTime?: boolean;
   skills?: string[];
+  profileCompleted?: boolean;
   trustScore?: number;
   onTimeRate?: number;
   completionRate?: number;
@@ -65,9 +66,10 @@ const UserSchema = new Schema<IUser>(
     xHandle: { type: String },
     showLocalTime: { type: Boolean, default: false },
     skills: { type: [String], default: [] },
-    trustScore: { type: Number, default: 90 },
-    onTimeRate: { type: Number, default: 95 },
-    completionRate: { type: Number, default: 98 },
+    profileCompleted: { type: Boolean, default: false },
+    trustScore: { type: Number, default: 0 },
+    onTimeRate: { type: Number, default: 0 },
+    completionRate: { type: Number, default: 0 },
     disputeRate: { type: Number, default: 0 },
     projectsCompleted: { type: Number, default: 0 },
     hourlyRate: { type: Number, default: 1000 },

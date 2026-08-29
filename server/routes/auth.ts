@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { UserModel } from '../models/User';
 import { generateOtp, hashOtp, hashPassword, sendOtpEmail, verifyGoogleToken, verifyOtp, verifyPassword } from '../services/auth';
+import { recalculateTrustScore } from '../services/trustScore';
 
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -99,8 +100,10 @@ router.put('/users/:id', async (req: Request, res: Response): Promise<void> => {
       user.freelancerRoles = [...new Set(requestedRoles as string[])];
     }
 
+    user.profileCompleted = true;
     await user.save();
-    res.json(sanitizeUser(user));
+    const updatedUser = await recalculateTrustScore(user.id);
+    res.json(sanitizeUser(updatedUser || user));
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -145,6 +148,10 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         emailVerified: false,
         authProvider: 'email',
         verified: false,
+        profileCompleted: false,
+        trustScore: 0,
+        onTimeRate: 0,
+        completionRate: 0,
         joinedDate: new Date().toISOString().split('T')[0],
       });
     }
@@ -296,6 +303,10 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
         googleId: payload.sub,
         emailVerified: true,
         verified: true,
+        profileCompleted: false,
+        trustScore: 0,
+        onTimeRate: 0,
+        completionRate: 0,
         joinedDate: new Date().toISOString().split('T')[0],
       });
     } else {

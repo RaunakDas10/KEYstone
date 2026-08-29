@@ -4,6 +4,7 @@ import { ProjectModel } from '../models/Project';
 import { LedgerEntryModel } from '../models/LedgerEntry';
 import { MessageModel } from '../models/Message';
 import { NotificationModel } from '../models/Notification';
+import { recalculateTrustScore } from '../services/trustScore';
 
 const router = Router();
 
@@ -146,7 +147,9 @@ router.post('/:id/resolve', async (req: Request, res: Response): Promise<void> =
       project.amountFrozen = 0;
       project.amountRefunded = clientRefundAmount;
       project.amountWithdrawable = freelancerAmount;
+      project.completedAt = new Date().toISOString();
       await project.save();
+      if (project.freelancerId) await recalculateTrustScore(project.freelancerId);
 
       // Ledger
       await new LedgerEntryModel({

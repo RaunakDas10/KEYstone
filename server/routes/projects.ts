@@ -4,6 +4,7 @@ import { LedgerEntryModel } from '../models/LedgerEntry';
 import { MessageModel } from '../models/Message';
 import { NotificationModel } from '../models/Notification';
 import { UserModel } from '../models/User';
+import { recalculateTrustScore } from '../services/trustScore';
 
 const router = Router();
 
@@ -388,6 +389,7 @@ router.post('/:id/select-freelancer', async (req: Request, res: Response): Promi
     project.status = 'active';
     project.lastActivityAt = new Date().toISOString();
     await project.save();
+    await recalculateTrustScore(application.freelancerId);
 
     await new MessageModel({
       id: `msg_${Date.now()}`,
@@ -575,16 +577,19 @@ router.post('/:id/milestones/:milestoneId/approve', async (req: Request, res: Re
       return s;
     });
 
+    const now = new Date().toISOString();
     const allApproved = project.milestones.every((m: any) => m.status === 'approved');
     if (allApproved) {
       project.status = 'completed';
+      project.completedAt = now;
     }
     project.amountFrozen = Math.max(0, project.amountFrozen - milestoneAmount);
     project.amountWithdrawable = project.amountWithdrawable + milestoneAmount;
     project.fundState = deriveProjectFundState(project);
-    project.lastActivityAt = new Date().toISOString();
+    project.lastActivityAt = now;
 
     await project.save();
+    if (project.freelancerId) await recalculateTrustScore(project.freelancerId);
 
     // Ledger
     await new LedgerEntryModel({

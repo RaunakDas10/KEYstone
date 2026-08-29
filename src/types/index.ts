@@ -27,6 +27,7 @@ export interface User {
   xHandle?: string;
   showLocalTime?: boolean;
   skills?: string[];
+  profileCompleted?: boolean;
   trustScore?: number;
   onTimeRate?: number;
   completionRate?: number;
@@ -154,6 +155,7 @@ export interface Project {
   currentMilestoneIndex: number;
   submissions: CheckpointSubmission[];
   createdAt: string;
+  completedAt?: string;
   lastActivityAt: string;
   inactivityDays: number;
   autoUnlockEligible: boolean;

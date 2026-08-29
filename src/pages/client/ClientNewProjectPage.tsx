@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle2, Lock, Sparkles, Clock, Zap } from 'lucide-react';
+import { ShieldCheck, Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle2, Lock, Sparkles, Clock, Zap, CalendarDays } from 'lucide-react';
 import { useAuthStore, useProjectStore } from '../../store';
 import { SEED_FREELANCERS } from '../../mock/seedData';
 import { Button } from '../../components/ui/Button';
@@ -22,6 +22,7 @@ export const ClientNewProjectPage: React.FC = () => {
   const { currentUser } = useAuthStore();
   const { createProject } = useProjectStore();
   const navigate = useNavigate();
+  const today = new Date().toISOString().slice(0, 10);
 
   // ---- Step State ----
   const [step, setStep] = useState(1);
@@ -367,8 +368,16 @@ export const ClientNewProjectPage: React.FC = () => {
                 type="date"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-blue-500"
+                min={today}
+                required
+                onClick={(event) => {
+                  const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+                  input.showPicker?.();
+                }}
+                aria-label="Choose project deadline from calendar"
+                className="w-full cursor-pointer bg-slate-950 border border-slate-800 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-blue-500"
               />
+              <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-500"><CalendarDays className="h-3.5 w-3.5" /> Click the field or calendar icon to choose a date.</p>
               {aiAnalysis && (
                 <p className="text-[11px] text-slate-500 mt-1">
                   Timeline feasibility score: <strong className={aiAnalysis.scoreBreakdown.timelineFeasibility >= 65 ? 'text-emerald-400' : aiAnalysis.scoreBreakdown.timelineFeasibility >= 40 ? 'text-amber-400' : 'text-rose-400'}>{aiAnalysis.scoreBreakdown.timelineFeasibility}%</strong>
@@ -391,25 +400,6 @@ export const ClientNewProjectPage: React.FC = () => {
                 <p className="mt-1 text-[11px] text-slate-500">Time to review the final delivery.</p>
               </div>
             </div>
-          </div>
-
-          <div className="flex justify-between pt-2">
-            <Button variant="outline" size="md" onClick={() => setStep(2)} leftIcon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
-            <Button variant="primary" size="md" onClick={() => setStep(4)} rightIcon={<ArrowRight className="w-4 h-4" />}>
-              Next: AI Milestones
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* ========== STEP 4: AI MILESTONE SUGGESTIONS ========== */}
-      {step === 4 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Button variant="outline" size="sm" onClick={() => setStep(3)} leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}>
-              Back
-            </Button>
-            <span className="text-xs text-slate-500">Step 4 of 6</span>
           </div>
 
           <div className="flex justify-between pt-2">

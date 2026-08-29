@@ -104,6 +104,7 @@ export interface IProject {
   currentMilestoneIndex: number;
   submissions: ICheckpointSubmission[];
   createdAt: string;
+  completedAt?: string;
   lastActivityAt: string;
   inactivityDays: number;
   autoUnlockEligible: boolean;
@@ -255,6 +256,7 @@ const ProjectSchema = new Schema<IProject>(
     currentMilestoneIndex: { type: Number, default: 0 },
     submissions: { type: [CheckpointSubmissionSchema], default: [] },
     createdAt: { type: String, default: () => new Date().toISOString() },
+    completedAt: { type: String },
     lastActivityAt: { type: String, default: () => new Date().toISOString() },
     inactivityDays: { type: Number, default: 0 },
     autoUnlockEligible: { type: Boolean, default: false },
