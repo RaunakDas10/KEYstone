@@ -19,8 +19,8 @@ export const RegisterPage: React.FC = () => {
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     login(role);
-    if (role === 'client') navigate('/client/overview');
-    else if (role === 'freelancer') navigate('/freelancer/overview');
+    if (role === 'client') navigate('/client/dashboard');
+    else if (role === 'freelancer') navigate('/freelancer/dashboard');
     else navigate('/admin/dashboard');
   };
 

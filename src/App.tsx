@@ -34,6 +34,7 @@ import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminReportsPage } from './pages/admin/AdminReportsPage';
 import { ChatPage } from './pages/shared/ChatPage';
 import { NotificationsPage } from './pages/shared/NotificationsPage';
+import { FreelancersDirectoryPage } from './pages/shared/FreelancersDirectoryPage';
 import { StandInPage } from './pages/public/StandInPage';
 import { AccountProfilePage } from './pages/shared/AccountProfilePage';
 
@@ -53,6 +54,18 @@ const PublicLayout: React.FC = () => {
     </div>
   );
 };
+
+const FullWidthLayout: React.FC = () => (
+  <div className="min-h-screen bg-slate-950 flex flex-col justify-between text-slate-100">
+    <div>
+      <Navbar />
+      <main className="w-full min-w-0">
+        <Outlet />
+      </main>
+    </div>
+    <Footer />
+  </div>
+);
 
 const DashboardLayout: React.FC = () => (
   <div className="min-h-screen bg-slate-950 flex flex-col justify-between text-slate-100">
@@ -93,6 +106,14 @@ export function App() {
           <Route path="/forgot-password" element={<LoginPage />} />
         </Route>
 
+        {/* Full-Width Talent Discovery Dashboard for Authenticated Users */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<FullWidthLayout />}>
+            <Route path="/client/dashboard" element={<FreelancersDirectoryPage />} />
+            <Route path="/freelancer/dashboard" element={<FreelancersDirectoryPage />} />
+          </Route>
+        </Route>
+
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/profile" element={<AccountProfilePage />} />
@@ -103,7 +124,6 @@ export function App() {
         <Route element={<ProtectedRoute allowedRoles={['client']} />}>
           <Route element={<DashboardLayout />}>
             <Route path="/client/overview" element={<ClientOverview />} />
-            <Route path="/client/dashboard" element={<ClientOverview />} />
             <Route path="/client/projects" element={<ClientOverview />} />
             <Route path="/client/projects/new" element={<ClientNewProjectPage />} />
             <Route path="/client/projects/:id" element={<ClientProjectDetailPage />} />
@@ -118,7 +138,6 @@ export function App() {
         <Route element={<ProtectedRoute allowedRoles={['freelancer']} />}>
           <Route element={<DashboardLayout />}>
             <Route path="/freelancer/overview" element={<FreelancerOverview />} />
-            <Route path="/freelancer/dashboard" element={<FreelancerOverview />} />
             <Route path="/freelancer/projects" element={<FreelancerOverview />} />
             <Route path="/freelancer/projects/:id" element={<FreelancerProjectDetailPage />} />
             <Route path="/freelancer/income" element={<FreelancerIncomePage />} />

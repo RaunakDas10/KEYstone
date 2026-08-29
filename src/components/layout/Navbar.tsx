@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Bell, User as UserIcon, LogOut, ChevronDown, Menu, X, Sparkles, LayoutDashboard, UserRound } from 'lucide-react';
+import { Shield, Bell, LogOut, ChevronDown, Menu, X, Home, UserRound } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { Button } from '../ui/Button';
 
@@ -22,8 +22,8 @@ export const Navbar: React.FC = () => {
   };
 
   const getDashboardRoute = () => {
-    if (currentUser.role === 'client') return '/client/overview';
-    if (currentUser.role === 'freelancer') return '/freelancer/overview';
+    if (currentUser.role === 'client') return '/client/dashboard';
+    if (currentUser.role === 'freelancer') return '/freelancer/dashboard';
     return '/admin/dashboard';
   };
 
@@ -68,25 +68,26 @@ export const Navbar: React.FC = () => {
           )}
 
           {/* User Actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             {showAccount ? (
               <>
+                {/* Home / Dashboard Icon Button */}
                 <Link
                   to={getDashboardRoute()}
-                  className="flex items-center gap-1.5 text-xs font-semibold bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 px-3.5 py-1.5 rounded-xl transition-all"
+                  title="Go to Dashboard"
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800 rounded-xl transition-colors flex items-center justify-center"
                 >
-                  <LayoutDashboard className="w-4 h-4" />
-                  Overview
+                  <Home className="w-5 h-5" />
                 </Link>
 
                 {/* Notifications */}
                 <Link
                   to={getNotificationsRoute()}
-                  className="relative p-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-colors"
+                  className="relative p-2 text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800 rounded-xl transition-colors flex items-center justify-center"
                 >
                   <Bell className="w-5 h-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
                       {unreadCount}
                     </span>
                   )}
@@ -198,7 +199,7 @@ export const Navbar: React.FC = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="block text-sm font-bold text-blue-400"
               >
-                Go to Overview
+                Dashboard
               </Link>
               <button onClick={handleLogout} className="block text-sm font-medium text-rose-400">
                 Sign Out
@@ -223,3 +224,5 @@ export const Navbar: React.FC = () => {
     </nav>
   );
 };
+
+export default Navbar;

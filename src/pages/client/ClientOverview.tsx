@@ -33,7 +33,7 @@ export const ClientOverview: React.FC = () => {
               Create Project
             </Button>
           </Link>
-          <Link to="/marketplace">
+          <Link to="/client/dashboard">
             <Button variant="outline" size="md">
               Browse Freelancers
             </Button>
