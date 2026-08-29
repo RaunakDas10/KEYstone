@@ -8,6 +8,15 @@ export interface IUser {
   avatar?: string;
   title?: string;
   bio?: string;
+  pronouns?: string;
+  company?: string;
+  location?: string;
+  website?: string;
+  linkedin?: string;
+  github?: string;
+  instagram?: string;
+  xHandle?: string;
+  showLocalTime?: boolean;
   skills?: string[];
   trustScore?: number;
   onTimeRate?: number;
@@ -28,6 +37,15 @@ const UserSchema = new Schema<IUser>(
     avatar: { type: String },
     title: { type: String },
     bio: { type: String },
+    pronouns: { type: String },
+    company: { type: String },
+    location: { type: String },
+    website: { type: String },
+    linkedin: { type: String },
+    github: { type: String },
+    instagram: { type: String },
+    xHandle: { type: String },
+    showLocalTime: { type: Boolean, default: false },
     skills: { type: [String], default: [] },
     trustScore: { type: Number, default: 90 },
     onTimeRate: { type: Number, default: 95 },

@@ -31,9 +31,19 @@ export interface IFreelancerApplication {
   id: string;
   freelancerId: string;
   freelancerName: string;
+  freelancerEmail: string;
   freelancerAvatar?: string;
   freelancerTitle?: string;
   freelancerBio?: string;
+  freelancerPronouns?: string;
+  freelancerCompany?: string;
+  freelancerLocation?: string;
+  freelancerWebsite?: string;
+  freelancerLinkedin?: string;
+  freelancerGithub?: string;
+  freelancerInstagram?: string;
+  freelancerXHandle?: string;
+  freelancerShowLocalTime?: boolean;
   freelancerSkills?: string[];
   trustScore?: number;
   completionRate?: number;
@@ -140,9 +150,19 @@ const FreelancerApplicationSchema = new Schema<IFreelancerApplication>(
     id: { type: String, required: true },
     freelancerId: { type: String, required: true },
     freelancerName: { type: String, required: true },
+    freelancerEmail: { type: String, required: true },
     freelancerAvatar: { type: String },
     freelancerTitle: { type: String },
     freelancerBio: { type: String },
+    freelancerPronouns: { type: String },
+    freelancerCompany: { type: String },
+    freelancerLocation: { type: String },
+    freelancerWebsite: { type: String },
+    freelancerLinkedin: { type: String },
+    freelancerGithub: { type: String },
+    freelancerInstagram: { type: String },
+    freelancerXHandle: { type: String },
+    freelancerShowLocalTime: { type: Boolean },
     freelancerSkills: { type: [String], default: [] },
     trustScore: { type: Number },
     completionRate: { type: Number },

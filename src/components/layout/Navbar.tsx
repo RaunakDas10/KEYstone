@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Bell, User as UserIcon, LogOut, ChevronDown, Menu, X, Sparkles, LayoutDashboard } from 'lucide-react';
+import { Shield, Bell, User as UserIcon, LogOut, ChevronDown, Menu, X, Sparkles, LayoutDashboard, UserRound } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { Button } from '../ui/Button';
 
@@ -103,12 +103,12 @@ export const Navbar: React.FC = () => {
                       </div>
 
                       <Link
-                        to={getDashboardRoute()}
+                        to="/profile"
                         onClick={() => setIsUserMenuOpen(false)}
                         className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
                       >
-                        <LayoutDashboard className="w-4 h-4 text-blue-400" />
-                        Go to Dashboard
+                        <UserRound className="w-4 h-4 text-blue-400" />
+                        My Profile
                       </Link>
 
                       <button

@@ -35,6 +35,7 @@ import { AdminReportsPage } from './pages/admin/AdminReportsPage';
 import { ChatPage } from './pages/shared/ChatPage';
 import { NotificationsPage } from './pages/shared/NotificationsPage';
 import { StandInPage } from './pages/public/StandInPage';
+import { AccountProfilePage } from './pages/shared/AccountProfilePage';
 
 const PublicLayout: React.FC = () => {
   const location = useLocation();
@@ -90,6 +91,12 @@ export function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<LoginPage />} />
+        </Route>
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/profile" element={<AccountProfilePage />} />
+          </Route>
         </Route>
 
         {/* Private Client Workspace Routes */}
