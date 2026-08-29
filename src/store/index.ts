@@ -694,6 +694,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         `90/10 FAIR RESOLUTION EXECUTED: ₹${clientRefund.toLocaleString()} refunded to Client, ₹${builderComp.toLocaleString()} paid to Builder for partial work.`,
         'RESOLUTION_90_10_EXECUTED'
       );
+
+      useNotificationStore.getState().addNotification({
+        userId: project.clientId,
+        type: 'payment',
+        title: '90/10 Fair Resolution Executed',
+        description: `₹${clientRefund.toLocaleString()} (90%) refunded to your escrow balance for "${project.title}".`,
+        link: `/client/projects/${projectId}`,
+      });
+
+      if (project.freelancerId) {
+        useNotificationStore.getState().addNotification({
+          userId: project.freelancerId,
+          type: 'payment',
+          title: '90/10 Fair Resolution Executed',
+          description: `₹${builderComp.toLocaleString()} (10%) work compensation released for "${project.title}".`,
+          link: '/freelancer/income',
+        });
+      }
     }
 
     api.reject90_10(projectId, milestoneId).catch(() => {});
@@ -741,6 +759,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         `7-DAY INACTIVITY PROTECTION TRIGGERED: Funds automatically moved to WITHDRAWABLE state.`,
         'AUTO_UNLOCK_EXECUTED'
       );
+
+      if (project.freelancerId) {
+        useNotificationStore.getState().addNotification({
+          userId: project.freelancerId,
+          type: 'payment',
+          title: '7-Day Inactivity Auto-Unlock',
+          description: `₹${amount.toLocaleString()} automatically unlocked to your balance for "${project.title}".`,
+          link: '/freelancer/income',
+        });
+      }
+
+      useNotificationStore.getState().addNotification({
+        userId: project.clientId,
+        type: 'system',
+        title: '7-Day Inactivity Auto-Unlock Executed',
+        description: `Funds for "${project.title}" released to freelancer due to 7 days of review inactivity.`,
+        link: `/client/projects/${project.id}`,
+      });
     }
 
     api.autoUnlock(projectId).catch(() => {});
@@ -801,6 +837,25 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         `DISPUTE INITIATED: Funds locked under platform review.`,
         'DISPUTE_OPENED'
       );
+
+      const againstId = user.role === 'client' ? project.freelancerId : project.clientId;
+      if (againstId) {
+        useNotificationStore.getState().addNotification({
+          userId: againstId,
+          type: 'dispute',
+          title: 'Dispute opened on project',
+          description: `${user.name} initiated a dispute on "${project.title}": ${reason}.`,
+          link: user.role === 'client' ? '/freelancer/disputes' : '/client/disputes',
+        });
+      }
+
+      useNotificationStore.getState().addNotification({
+        userId: 'user_admin_1',
+        type: 'dispute',
+        title: 'New dispute requires review',
+        description: `${user.name} raised dispute for "${project.title}".`,
+        link: '/admin/disputes',
+      });
     }
 
     api.raiseDispute({ projectId, reason, description, user }).catch(() => {});
@@ -866,6 +921,27 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         `DISPUTE RESOLVED BY ADMIN: Financial settlement executed.`,
         'DISPUTE_RESOLVED'
       );
+
+      const project = get().projects.find((p) => p.id === dispute.projectId);
+      if (project) {
+        useNotificationStore.getState().addNotification({
+          userId: project.clientId,
+          type: 'dispute',
+          title: 'Dispute Resolved by Admin',
+          description: `Dispute for "${project.title}" resolved. Refund: ₹${dispute.resolution?.clientRefundAmount.toLocaleString()}.`,
+          link: '/client/disputes',
+        });
+
+        if (project.freelancerId) {
+          useNotificationStore.getState().addNotification({
+            userId: project.freelancerId,
+            type: 'dispute',
+            title: 'Dispute Resolved by Admin',
+            description: `Dispute for "${project.title}" resolved. Payout: ₹${dispute.resolution?.freelancerAmount.toLocaleString()}.`,
+            link: '/freelancer/disputes',
+          });
+        }
+      }
     }
 
     api.resolveDispute(disputeId, clientRefundPct).catch(() => {});

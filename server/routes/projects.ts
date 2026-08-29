@@ -523,6 +523,31 @@ router.post('/:id/milestones/:milestoneId/reject-90-10', async (req: Request, re
       systemEventType: 'RESOLUTION_90_10_EXECUTED',
     }).save();
 
+    // Notification to Client and Freelancer
+    await new NotificationModel({
+      id: `notif_${Date.now()}_client`,
+      userId: project.clientId,
+      type: 'payment',
+      title: '90/10 Fair Resolution Executed',
+      description: `₹${clientRefund.toLocaleString()} (90%) was refunded to your escrow balance for "${project.title}".`,
+      timestamp: 'Just now',
+      read: false,
+      link: `/client/projects/${projectId}`,
+    }).save();
+
+    if (project.freelancerId) {
+      await new NotificationModel({
+        id: `notif_${Date.now()}_freelancer`,
+        userId: project.freelancerId,
+        type: 'payment',
+        title: '90/10 Fair Resolution Executed',
+        description: `₹${builderComp.toLocaleString()} (10%) work compensation released for "${project.title}".`,
+        timestamp: 'Just now',
+        read: false,
+        link: '/freelancer/income',
+      }).save();
+    }
+
     res.json(project);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -576,6 +601,30 @@ router.post('/:id/auto-unlock', async (req: Request, res: Response): Promise<voi
       timestamp: new Date().toISOString(),
       isSystemEvent: true,
       systemEventType: 'AUTO_UNLOCK_EXECUTED',
+    }).save();
+
+    if (project.freelancerId) {
+      await new NotificationModel({
+        id: `notif_${Date.now()}_freelancer`,
+        userId: project.freelancerId,
+        type: 'payment',
+        title: '7-Day Inactivity Auto-Unlock',
+        description: `₹${frozenOrCustody.toLocaleString()} automatically unlocked to your withdrawable balance for "${project.title}".`,
+        timestamp: 'Just now',
+        read: false,
+        link: '/freelancer/income',
+      }).save();
+    }
+
+    await new NotificationModel({
+      id: `notif_${Date.now()}_client`,
+      userId: project.clientId,
+      type: 'system',
+      title: '7-Day Inactivity Auto-Unlock Executed',
+      description: `Funds for "${project.title}" released to freelancer due to 7 days of review inactivity.`,
+      timestamp: 'Just now',
+      read: false,
+      link: `/client/projects/${project.id}`,
     }).save();
 
     res.json(project);

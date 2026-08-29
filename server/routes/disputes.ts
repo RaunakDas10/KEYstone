@@ -3,6 +3,7 @@ import { DisputeModel } from '../models/Dispute';
 import { ProjectModel } from '../models/Project';
 import { LedgerEntryModel } from '../models/LedgerEntry';
 import { MessageModel } from '../models/Message';
+import { NotificationModel } from '../models/Notification';
 
 const router = Router();
 
@@ -82,6 +83,33 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       systemEventType: 'DISPUTE_OPENED',
     }).save();
 
+    // Notification to against user
+    const againstId = user.role === 'client' ? project.freelancerId : project.clientId;
+    if (againstId) {
+      await new NotificationModel({
+        id: `notif_${Date.now()}_dispute_party`,
+        userId: againstId,
+        type: 'dispute',
+        title: 'Dispute opened on project',
+        description: `${user.name} initiated a dispute on "${project.title}": ${reason}.`,
+        timestamp: 'Just now',
+        read: false,
+        link: user.role === 'client' ? '/freelancer/disputes' : '/client/disputes',
+      }).save();
+    }
+
+    // Notification to admin
+    await new NotificationModel({
+      id: `notif_${Date.now()}_dispute_admin`,
+      userId: 'user_admin_1',
+      type: 'dispute',
+      title: 'New dispute requires review',
+      description: `${user.name} raised dispute for "${project.title}".`,
+      timestamp: 'Just now',
+      read: false,
+      link: '/admin/disputes',
+    }).save();
+
     res.status(201).json(savedDispute);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -150,6 +178,31 @@ router.post('/:id/resolve', async (req: Request, res: Response): Promise<void> =
         isSystemEvent: true,
         systemEventType: 'DISPUTE_RESOLVED',
       }).save();
+
+      // Notifications to both client and freelancer
+      await new NotificationModel({
+        id: `notif_${Date.now()}_res_client`,
+        userId: project.clientId,
+        type: 'dispute',
+        title: 'Dispute Resolved by Admin',
+        description: `Dispute for "${project.title}" resolved. Refund: ₹${clientRefundAmount.toLocaleString()}.`,
+        timestamp: 'Just now',
+        read: false,
+        link: '/client/disputes',
+      }).save();
+
+      if (project.freelancerId) {
+        await new NotificationModel({
+          id: `notif_${Date.now()}_res_freelancer`,
+          userId: project.freelancerId,
+          type: 'dispute',
+          title: 'Dispute Resolved by Admin',
+          description: `Dispute for "${project.title}" resolved. Payout: ₹${freelancerAmount.toLocaleString()}.`,
+          timestamp: 'Just now',
+          read: false,
+          link: '/freelancer/disputes',
+        }).save();
+      }
     }
 
     res.json(dispute);
