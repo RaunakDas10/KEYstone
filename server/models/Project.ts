@@ -27,6 +27,22 @@ export interface ICheckpointSubmission {
   reviewedAt?: string;
 }
 
+export interface IFreelancerApplication {
+  id: string;
+  freelancerId: string;
+  freelancerName: string;
+  freelancerAvatar?: string;
+  freelancerTitle?: string;
+  freelancerBio?: string;
+  freelancerSkills?: string[];
+  trustScore?: number;
+  completionRate?: number;
+  projectsCompleted?: number;
+  hourlyRate?: number;
+  verified: boolean;
+  submittedAt: string;
+}
+
 export interface IProject {
   id: string;
   title: string;
@@ -45,7 +61,10 @@ export interface IProject {
   freelancerAvatar?: string;
   freelancerTitle?: string;
   access?: 'invited' | 'open';
-  status: 'draft' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled';
+  applicationDeadline?: string;
+  applications: IFreelancerApplication[];
+  selectedAt?: string;
+  status: 'draft' | 'selection_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled';
   fundState: 'IN_CUSTODY' | 'FROZEN' | 'WITHDRAWABLE' | 'REFUNDED' | 'PAID' | 'DISPUTED';
   amountInCustody: number;
   amountFrozen: number;
@@ -116,6 +135,25 @@ const CheckpointSubmissionSchema = new Schema<ICheckpointSubmission>(
   { _id: false }
 );
 
+const FreelancerApplicationSchema = new Schema<IFreelancerApplication>(
+  {
+    id: { type: String, required: true },
+    freelancerId: { type: String, required: true },
+    freelancerName: { type: String, required: true },
+    freelancerAvatar: { type: String },
+    freelancerTitle: { type: String },
+    freelancerBio: { type: String },
+    freelancerSkills: { type: [String], default: [] },
+    trustScore: { type: Number },
+    completionRate: { type: Number },
+    projectsCompleted: { type: Number },
+    hourlyRate: { type: Number },
+    verified: { type: Boolean, default: false },
+    submittedAt: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 const ProjectSchema = new Schema<IProject>(
   {
     id: { type: String, required: true, unique: true, index: true },
@@ -135,9 +173,12 @@ const ProjectSchema = new Schema<IProject>(
     freelancerAvatar: { type: String },
     freelancerTitle: { type: String },
     access: { type: String, enum: ['invited', 'open'], default: 'open' },
+    applicationDeadline: { type: String },
+    applications: { type: [FreelancerApplicationSchema], default: [] },
+    selectedAt: { type: String },
     status: {
       type: String,
-      enum: ['draft', 'active', 'in_review', 'completed', 'disputed', 'cancelled'],
+      enum: ['draft', 'selection_pending', 'active', 'in_review', 'completed', 'disputed', 'cancelled'],
       default: 'active',
     },
     fundState: {

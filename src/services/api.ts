@@ -59,6 +59,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(project),
     }),
+  applyToProject: (projectId: string, freelancerId: string) =>
+    request<Project>(`/projects/${projectId}/applications`, {
+      method: 'POST',
+      body: JSON.stringify({ freelancerId }),
+    }),
+  selectFreelancer: (projectId: string, freelancerId: string) =>
+    request<Project>(`/projects/${projectId}/select-freelancer`, {
+      method: 'POST',
+      body: JSON.stringify({ freelancerId }),
+    }),
   submitCheckpoint: (
     projectId: string,
     milestoneId: string,

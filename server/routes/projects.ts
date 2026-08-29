@@ -3,12 +3,34 @@ import { ProjectModel } from '../models/Project';
 import { LedgerEntryModel } from '../models/LedgerEntry';
 import { MessageModel } from '../models/Message';
 import { NotificationModel } from '../models/Notification';
+import { UserModel } from '../models/User';
 
 const router = Router();
+
+const applicationDeadlineHasPassed = (deadline?: string) => {
+  if (!deadline) return false;
+  return new Date() > new Date(`${deadline}T23:59:59.999`);
+};
+
+const migrateLegacyOpenProjects = async () => {
+  const applicationDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  await ProjectModel.updateMany(
+    {
+      access: 'open',
+      selectedAt: { $exists: false },
+      $or: [{ applicationDeadline: { $exists: false } }, { applicationDeadline: null }],
+    },
+    {
+      $set: { status: 'selection_pending', applicationDeadline, applications: [] },
+      $unset: { freelancerId: '', freelancerName: '', freelancerAvatar: '', freelancerTitle: '' },
+    }
+  );
+};
 
 // GET all projects
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
+    await migrateLegacyOpenProjects();
     const { clientId, freelancerId } = req.query;
     const query: Record<string, any> = {};
     if (clientId) query.clientId = clientId;
@@ -24,6 +46,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 // GET single project
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
+    await migrateLegacyOpenProjects();
     const project = await ProjectModel.findOne({ id: req.params.id });
     if (!project) {
       res.status(404).json({ error: 'Project not found' });
@@ -41,6 +64,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     const projectData = req.body;
     const id = projectData.id || `proj_${Date.now()}`;
     const budget = Number(projectData.budget) || 50000;
+    const access = projectData.access || (projectData.freelancerId ? 'invited' : 'open');
 
     const milestones =
       projectData.milestones && projectData.milestones.length > 0
@@ -69,7 +93,10 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       amountPaid: 0,
       amountRefunded: 0,
       fundState: 'IN_CUSTODY',
-      status: 'active',
+      access,
+      applicationDeadline: access === 'open' ? projectData.applicationDeadline : undefined,
+      applications: [],
+      status: access === 'open' ? 'selection_pending' : 'active',
       milestones,
       submissions: [],
       createdAt: new Date().toISOString(),
@@ -112,6 +139,135 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     await sysMsg.save();
 
     res.status(201).json(savedProject);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// POST submit freelancer profile for an open project
+router.post('/:id/applications', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { freelancerId } = req.body;
+    const project = await ProjectModel.findOne({ id: req.params.id });
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    if (project.access !== 'open' || project.freelancerId || project.status !== 'selection_pending') {
+      res.status(400).json({ error: 'This project is not accepting freelancer profiles.' });
+      return;
+    }
+    if (applicationDeadlineHasPassed(project.applicationDeadline)) {
+      res.status(400).json({ error: 'The profile submission deadline has passed.' });
+      return;
+    }
+    if (!freelancerId) {
+      res.status(400).json({ error: 'A freelancer profile is required.' });
+      return;
+    }
+    if (project.applications.some((application) => application.freelancerId === freelancerId)) {
+      res.status(409).json({ error: 'Your profile has already been submitted for this project.' });
+      return;
+    }
+
+    const freelancer = await UserModel.findOne({ id: freelancerId, role: 'freelancer' });
+    if (!freelancer) {
+      res.status(404).json({ error: 'Freelancer profile not found.' });
+      return;
+    }
+
+    project.applications.push({
+      id: `app_${Date.now()}`,
+      freelancerId: freelancer.id,
+      freelancerName: freelancer.name,
+      freelancerAvatar: freelancer.avatar,
+      freelancerTitle: freelancer.title,
+      freelancerBio: freelancer.bio,
+      freelancerSkills: freelancer.skills || [],
+      trustScore: freelancer.trustScore,
+      completionRate: freelancer.completionRate,
+      projectsCompleted: freelancer.projectsCompleted,
+      hourlyRate: freelancer.hourlyRate,
+      verified: freelancer.verified,
+      submittedAt: new Date().toISOString(),
+    });
+    project.lastActivityAt = new Date().toISOString();
+    await project.save();
+
+    await new NotificationModel({
+      id: `notif_${Date.now()}`,
+      userId: project.clientId,
+      type: 'project',
+      title: 'New freelancer profile submitted',
+      description: `${freelancer.name} submitted their profile for "${project.title}".`,
+      timestamp: 'Just now',
+      read: false,
+      link: `/client/projects/${project.id}`,
+    }).save();
+
+    res.status(201).json(project);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// POST select one applicant after the profile submission deadline
+router.post('/:id/select-freelancer', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { freelancerId } = req.body;
+    const project = await ProjectModel.findOne({ id: req.params.id });
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    if (project.access !== 'open' || project.status !== 'selection_pending') {
+      res.status(400).json({ error: 'This project is not awaiting freelancer selection.' });
+      return;
+    }
+    if (!applicationDeadlineHasPassed(project.applicationDeadline)) {
+      res.status(400).json({ error: 'You can select a freelancer only after the profile submission deadline.' });
+      return;
+    }
+
+    const application = project.applications.find((item) => item.freelancerId === freelancerId);
+    if (!application) {
+      res.status(400).json({ error: 'Select a freelancer who submitted a profile for this project.' });
+      return;
+    }
+
+    project.freelancerId = application.freelancerId;
+    project.freelancerName = application.freelancerName;
+    project.freelancerAvatar = application.freelancerAvatar;
+    project.freelancerTitle = application.freelancerTitle;
+    project.selectedAt = new Date().toISOString();
+    project.status = 'active';
+    project.lastActivityAt = new Date().toISOString();
+    await project.save();
+
+    await new MessageModel({
+      id: `msg_${Date.now()}`,
+      projectId: project.id,
+      senderId: 'system',
+      senderName: 'KEYStone Protocol',
+      senderRole: 'admin',
+      content: `FREELANCER SELECTED: ${application.freelancerName} can now begin work and submit project checkpoints.`,
+      timestamp: new Date().toISOString(),
+      isSystemEvent: true,
+      systemEventType: 'PROJECT_STARTED',
+    }).save();
+
+    await new NotificationModel({
+      id: `notif_${Date.now()}`,
+      userId: application.freelancerId,
+      type: 'project',
+      title: 'You were selected for a project',
+      description: `${project.clientName} selected you for "${project.title}". Your project workspace is ready.`,
+      timestamp: 'Just now',
+      read: false,
+      link: `/freelancer/projects/${project.id}`,
+    }).save();
+
+    res.json(project);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

@@ -2,7 +2,7 @@ export type UserRole = 'client' | 'freelancer' | 'admin';
 
 export type FundState = 'IN_CUSTODY' | 'FROZEN' | 'WITHDRAWABLE' | 'REFUNDED' | 'PAID' | 'DISPUTED';
 
-export type ProjectStatus = 'draft' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled';
+export type ProjectStatus = 'draft' | 'selection_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled';
 export type ProjectAccess = 'invited' | 'open';
 
 export type CheckpointStatus = 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'disputed';
@@ -53,6 +53,22 @@ export interface CheckpointSubmission {
   reviewedAt?: string;
 }
 
+export interface FreelancerApplication {
+  id: string;
+  freelancerId: string;
+  freelancerName: string;
+  freelancerAvatar?: string;
+  freelancerTitle?: string;
+  freelancerBio?: string;
+  freelancerSkills?: string[];
+  trustScore?: number;
+  completionRate?: number;
+  projectsCompleted?: number;
+  hourlyRate?: number;
+  verified: boolean;
+  submittedAt: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -71,6 +87,9 @@ export interface Project {
   freelancerAvatar?: string;
   freelancerTitle?: string;
   access?: ProjectAccess;
+  applicationDeadline?: string;
+  applications?: FreelancerApplication[];
+  selectedAt?: string;
   status: ProjectStatus;
   fundState: FundState;
   amountInCustody: number;

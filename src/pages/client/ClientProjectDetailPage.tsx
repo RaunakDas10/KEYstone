@@ -13,6 +13,9 @@ import {
   GitBranch,
   Flag,
   Star,
+  Users,
+  CalendarDays,
+  UserCheck,
 } from 'lucide-react';
 import { useProjectStore, useAuthStore } from '../../store';
 import { SEED_USERS } from '../../mock/seedData';
@@ -25,7 +28,7 @@ import { Badge } from '../../components/ui/Badge';
 
 export const ClientProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser, rateFreelancer } = useProjectStore();
+  const { projects, approveCheckpoint, rejectWith90_10Resolution, raiseDispute, reportUser, rateFreelancer, selectFreelancer } = useProjectStore();
   const { currentUser } = useAuthStore();
 
   const project = projects.find((p) => p.id === id) || projects[0];
@@ -40,6 +43,7 @@ export const ClientProjectDetailPage: React.FC = () => {
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState('');
+  const [selectionError, setSelectionError] = useState('');
 
   const currentMilestone = project.milestones[project.currentMilestoneIndex] || project.milestones[0];
   const submission = project.submissions[0];
@@ -74,6 +78,42 @@ export const ClientProjectDetailPage: React.FC = () => {
   const totalAmount = currentMilestone?.amount || project.budget;
   const client90Pct = Math.round(totalAmount * 0.9);
   const builder10Pct = Math.round(totalAmount * 0.1);
+  const isAwaitingSelection = project.access === 'open' && project.status === 'selection_pending' && !project.freelancerId;
+  const selectionIsOpen = project.applicationDeadline
+    ? new Date() > new Date(`${project.applicationDeadline}T23:59:59.999`)
+    : false;
+
+  const handleSelectFreelancer = async (freelancerId: string) => {
+    const selected = await selectFreelancer(project.id, freelancerId);
+    if (!selected) setSelectionError('The submission deadline must pass before you can select an applicant.');
+  };
+
+  if (isAwaitingSelection) {
+    const applications = project.applications || [];
+    return (
+      <div className="space-y-8">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-2 flex items-center gap-2"><span className="text-xs font-bold uppercase tracking-widest text-emerald-400">Open project</span><span className="rounded-full bg-amber-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">Awaiting selection</span></div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white">{project.title}</h1>
+              <p className="mt-2 text-xs text-slate-400">Funds are secured; work remains locked until you select one submitted freelancer profile.</p>
+            </div>
+            <div className={`rounded-2xl border px-4 py-3 text-xs ${selectionIsOpen ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+              <span className="flex items-center gap-2 font-bold"><CalendarDays className="h-4 w-4" /> Profile deadline: {project.applicationDeadline || 'Not set'}</span>
+              <p className="mt-1">{selectionIsOpen ? 'Selection is now open.' : 'Selection unlocks after this date expires.'}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <div className="mb-6 flex items-center justify-between"><div><h2 className="flex items-center gap-2 text-xl font-bold text-white"><Users className="h-5 w-5 text-blue-400" /> Freelancer profiles</h2><p className="mt-1 text-xs text-slate-400">Review the submitted profile snapshots before assigning the workspace.</p></div><span className="text-sm font-mono font-bold text-white">{applications.length} submitted</span></div>
+          {selectionError && <p className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">{selectionError}</p>}
+          {applications.length ? <div className="grid gap-4 md:grid-cols-2">{applications.map((application) => <article key={application.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-5"><div className="flex items-start gap-3"><img src={application.freelancerAvatar} alt="" className="h-12 w-12 rounded-xl object-cover" /><div className="min-w-0"><h3 className="font-bold text-white">{application.freelancerName}</h3><p className="text-xs text-slate-400">{application.freelancerTitle || 'Freelancer'}</p></div>{application.verified && <span className="ml-auto text-[10px] font-bold text-emerald-400">VERIFIED</span>}</div><p className="mt-4 line-clamp-3 text-xs leading-relaxed text-slate-400">{application.freelancerBio || 'No profile bio provided.'}</p><div className="mt-4 flex flex-wrap gap-1.5">{application.freelancerSkills?.map((skill) => <span key={skill} className="rounded bg-slate-900 px-2 py-1 text-[10px] text-slate-300">{skill}</span>)}</div><div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-4"><span className="text-[11px] text-slate-400">Score {application.trustScore ?? '—'} · {application.projectsCompleted ?? 0} projects</span><Button variant="emerald" size="sm" disabled={!selectionIsOpen} onClick={() => handleSelectFreelancer(application.freelancerId)} leftIcon={<UserCheck className="h-3.5 w-3.5" />}>Select freelancer</Button></div></article>)}</div> : <div className="rounded-2xl border border-slate-800 bg-slate-950 p-10 text-center"><Users className="mx-auto h-8 w-8 text-slate-500" /><h3 className="mt-3 text-sm font-bold text-white">No profiles submitted yet</h3><p className="mt-1 text-xs text-slate-400">Freelancers can submit their profile until {project.applicationDeadline || 'the deadline'}.</p></div>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useProjectStore } from './store';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
@@ -36,17 +36,22 @@ import { ChatPage } from './pages/shared/ChatPage';
 import { NotificationsPage } from './pages/shared/NotificationsPage';
 import { StandInPage } from './pages/public/StandInPage';
 
-const PublicLayout: React.FC = () => (
-  <div className="min-h-screen bg-slate-950 flex flex-col justify-between text-slate-100">
-    <div>
-      <Navbar />
-      <main>
-        <Outlet />
-      </main>
+const PublicLayout: React.FC = () => {
+  const location = useLocation();
+  const isCinematicLanding = location.pathname === '/' || location.pathname === '/landing';
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col justify-between text-slate-100">
+      <div>
+        {!isCinematicLanding && <Navbar />}
+        <main>
+          <Outlet />
+        </main>
+      </div>
+      <Footer />
     </div>
-    <Footer />
-  </div>
-);
+  );
+};
 
 const DashboardLayout: React.FC = () => (
   <div className="min-h-screen bg-slate-950 flex flex-col justify-between text-slate-100">
@@ -75,7 +80,7 @@ export function App() {
       <Routes>
         {/* Public Landing & Marketing Pages */}
         <Route element={<PublicLayout />}>
-          <Route path="/" element={<StandInPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/freelancers/:id" element={<FreelancerProfilePage />} />

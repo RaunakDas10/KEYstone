@@ -19,6 +19,7 @@ export const ClientNewProjectPage: React.FC = () => {
   const [budget, setBudget] = useState(50000);
   const [deadline, setDeadline] = useState('2026-10-15');
   const [access, setAccess] = useState<'invited' | 'open'>('open');
+  const [applicationDeadline, setApplicationDeadline] = useState('2026-09-10');
   const [selectedFreelancerId, setSelectedFreelancerId] = useState(SEED_FREELANCERS[0].id);
 
   const [milestones, setMilestones] = useState([
@@ -54,6 +55,7 @@ export const ClientNewProjectPage: React.FC = () => {
         budget: Number(budget),
         deadline,
         access,
+        ...(access === 'open' ? { applicationDeadline } : {}),
         ...(access === 'invited' ? (() => { const freelancer = SEED_FREELANCERS.find((item) => item.id === selectedFreelancerId) || SEED_FREELANCERS[0]; return { freelancerId: freelancer.id, freelancerName: freelancer.name, freelancerAvatar: freelancer.avatar, freelancerTitle: freelancer.title }; })() : {}),
         clientId: currentUser.id,
         clientName: currentUser.name,
@@ -128,9 +130,10 @@ export const ClientNewProjectPage: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-300 mb-2">Freelancer access</label>
               <div className="grid sm:grid-cols-2 gap-3">
                 <button type="button" onClick={() => setAccess('invited')} className={`text-left p-3 rounded-xl border ${access === 'invited' ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-slate-950'}`}><strong className="block text-sm text-white">Choose a freelancer</strong><span className="text-[11px] text-slate-400">Select a verified freelancer for this contract.</span></button>
-                <button type="button" onClick={() => setAccess('open')} className={`text-left p-3 rounded-xl border ${access === 'open' ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-950'}`}><strong className="block text-sm text-white">Open to all</strong><span className="text-[11px] text-slate-400">Publish the brief for verified talent.</span></button>
+                <button type="button" onClick={() => setAccess('open')} className={`text-left p-3 rounded-xl border ${access === 'open' ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-950'}`}><strong className="block text-sm text-white">Open to all</strong><span className="text-[11px] text-slate-400">Collect freelancer profiles, then select one after the deadline.</span></button>
               </div>
               {access === 'invited' && <select value={selectedFreelancerId} onChange={(e) => setSelectedFreelancerId(e.target.value)} className="w-full mt-3 bg-slate-950 border border-slate-800 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-blue-500">{SEED_FREELANCERS.map((freelancer) => <option key={freelancer.id} value={freelancer.id}>{freelancer.name} - {freelancer.title}</option>)}</select>}
+              {access === 'open' && <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3"><label className="mb-1 block text-xs font-semibold text-emerald-300">Profile submission deadline</label><input type="date" value={applicationDeadline} onChange={(e) => setApplicationDeadline(e.target.value)} className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-xl p-3 focus:outline-none focus:border-emerald-500" /><p className="mt-2 text-[11px] leading-relaxed text-slate-400">Freelancers can submit their profiles until this date. You can choose an applicant only after it expires.</p></div>}
             </div>
 
             <div>
@@ -294,6 +297,7 @@ export const ClientNewProjectPage: React.FC = () => {
               <span className="text-slate-400">Assigned Freelancer:</span>
               <span className="font-bold text-white">{access === 'invited' ? `${SEED_FREELANCERS.find((item) => item.id === selectedFreelancerId)?.name} (Selected freelancer)` : 'Open to verified freelancers'}</span>
             </div>
+            {access === 'open' && <div className="flex justify-between border-b border-slate-800 pb-3"><span className="text-slate-400">Profile deadline:</span><span className="font-bold text-emerald-400">{applicationDeadline}</span></div>}
           </div>
 
           <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl text-xs text-blue-300 leading-relaxed flex items-start gap-3">

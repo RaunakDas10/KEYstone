@@ -5,6 +5,7 @@ import {
   Project,
   Milestone,
   CheckpointSubmission,
+  FreelancerApplication,
   LedgerEntry,
   Dispute,
   Message,
@@ -21,6 +22,40 @@ import {
   SEED_NOTIFICATIONS,
 } from '../mock/seedData';
 import { api } from '../services/api';
+
+const applicationDeadlineHasPassed = (deadline?: string) =>
+  Boolean(deadline) && new Date() > new Date(`${deadline}T23:59:59.999`);
+
+const createProfileApplication = (freelancer: User): FreelancerApplication => ({
+  id: `app_${Date.now()}`,
+  freelancerId: freelancer.id,
+  freelancerName: freelancer.name,
+  freelancerAvatar: freelancer.avatar,
+  freelancerTitle: freelancer.title,
+  freelancerBio: freelancer.bio,
+  freelancerSkills: freelancer.skills || [],
+  trustScore: freelancer.trustScore,
+  completionRate: freelancer.completionRate,
+  projectsCompleted: freelancer.projectsCompleted,
+  hourlyRate: freelancer.hourlyRate,
+  verified: freelancer.verified,
+  submittedAt: new Date().toISOString(),
+});
+
+const normalizeLegacyOpenProject = (project: Project): Project => {
+  if (project.access !== 'open' || project.applicationDeadline || project.selectedAt) return project;
+  const applicationDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return {
+    ...project,
+    freelancerId: undefined,
+    freelancerName: undefined,
+    freelancerAvatar: undefined,
+    freelancerTitle: undefined,
+    applicationDeadline,
+    applications: [],
+    status: 'selection_pending',
+  };
+};
 
 // ---------------- AUTH STORE ----------------
 interface AuthState {
@@ -206,6 +241,8 @@ interface ProjectState {
   setActiveProjectId: (id: string | null) => void;
   fetchInitialData: () => Promise<void>;
   createProject: (projectData: Partial<Project>) => Project;
+  applyToProject: (projectId: string, freelancer: User) => Promise<boolean>;
+  selectFreelancer: (projectId: string, freelancerId: string) => Promise<boolean>;
   submitCheckpoint: (
     projectId: string,
     milestoneId: string,
@@ -257,7 +294,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       set({ dbConnected: isConnected });
 
       if (projects.status === 'fulfilled' && projects.value?.length > 0) {
-        set({ projects: projects.value });
+        set({ projects: projects.value.map(normalizeLegacyOpenProject) });
       }
       if (disputes.status === 'fulfilled' && disputes.value?.length > 0) {
         set({ disputes: disputes.value });
@@ -283,6 +320,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   createProject: (projectData) => {
     const id = `proj_${Date.now()}`;
+    const access = projectData.access || (projectData.freelancerId ? 'invited' : 'open');
     const newProject: Project = {
       id,
       title: projectData.title || 'Untitled Project',
@@ -300,8 +338,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       freelancerName: projectData.freelancerName,
       freelancerAvatar: projectData.freelancerAvatar,
       freelancerTitle: projectData.freelancerTitle,
-      access: projectData.access || (projectData.freelancerId ? 'invited' : 'open'),
-      status: 'active',
+      access,
+      applicationDeadline: access === 'open' ? projectData.applicationDeadline : undefined,
+      applications: [],
+      status: access === 'open' ? 'selection_pending' : 'active',
       fundState: 'IN_CUSTODY',
       amountInCustody: projectData.budget || 50000,
       amountFrozen: 0,
@@ -355,6 +395,95 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     api.createProject(newProject).catch(() => {});
 
     return newProject;
+  },
+
+  applyToProject: async (projectId, freelancer) => {
+    const project = get().projects.find((item) => item.id === projectId);
+    if (
+      !project ||
+      freelancer.role !== 'freelancer' ||
+      project.access !== 'open' ||
+      project.status !== 'selection_pending' ||
+      project.freelancerId ||
+      applicationDeadlineHasPassed(project.applicationDeadline) ||
+      project.applications?.some((application) => application.freelancerId === freelancer.id)
+    ) {
+      return false;
+    }
+
+    const application = createProfileApplication(freelancer);
+    set((state) => ({
+      projects: state.projects.map((item) =>
+        item.id === projectId
+          ? { ...item, applications: [...(item.applications || []), application], lastActivityAt: application.submittedAt }
+          : item
+      ),
+    }));
+
+    useNotificationStore.getState().addNotification({
+      userId: project.clientId,
+      type: 'project',
+      title: 'New freelancer profile submitted',
+      description: `${freelancer.name} submitted their profile for "${project.title}".`,
+      link: `/client/projects/${projectId}`,
+    });
+
+    api.applyToProject(projectId, freelancer.id).then((savedProject) => {
+      set((state) => ({ projects: state.projects.map((item) => (item.id === projectId ? savedProject : item)) }));
+    }).catch(() => {});
+
+    return true;
+  },
+
+  selectFreelancer: async (projectId, freelancerId) => {
+    const project = get().projects.find((item) => item.id === projectId);
+    const application = project?.applications?.find((item) => item.freelancerId === freelancerId);
+    if (
+      !project ||
+      !application ||
+      project.access !== 'open' ||
+      project.status !== 'selection_pending' ||
+      !applicationDeadlineHasPassed(project.applicationDeadline)
+    ) {
+      return false;
+    }
+
+    const selectedAt = new Date().toISOString();
+    set((state) => ({
+      projects: state.projects.map((item) =>
+        item.id === projectId
+          ? {
+              ...item,
+              freelancerId: application.freelancerId,
+              freelancerName: application.freelancerName,
+              freelancerAvatar: application.freelancerAvatar,
+              freelancerTitle: application.freelancerTitle,
+              selectedAt,
+              status: 'active',
+              lastActivityAt: selectedAt,
+            }
+          : item
+      ),
+    }));
+
+    useMessageStore.getState().addSystemEvent(
+      projectId,
+      `FREELANCER SELECTED: ${application.freelancerName} can now begin work and submit project checkpoints.`,
+      'PROJECT_STARTED'
+    );
+    useNotificationStore.getState().addNotification({
+      userId: application.freelancerId,
+      type: 'project',
+      title: 'You were selected for a project',
+      description: `${project.clientName} selected you for "${project.title}". Your project workspace is ready.`,
+      link: `/freelancer/projects/${projectId}`,
+    });
+
+    api.selectFreelancer(projectId, freelancerId).then((savedProject) => {
+      set((state) => ({ projects: state.projects.map((item) => (item.id === projectId ? savedProject : item)) }));
+    }).catch(() => {});
+
+    return true;
   },
 
   submitCheckpoint: (projectId, milestoneId, submissionData) => {
