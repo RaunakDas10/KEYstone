@@ -29,10 +29,8 @@ export const Sidebar: React.FC = () => {
 
   const freelancerLinks = [
     { to: '/freelancer/overview', label: 'Overview', icon: LayoutDashboard },
-    { to: '/freelancer/projects', label: 'My Projects', icon: Briefcase },
     { to: '/marketplace', label: 'Open Projects', icon: Store },
     { to: '/freelancer/income', label: 'Income', icon: Wallet },
-    { to: '/freelancer/transactions', label: 'Ledger', icon: Receipt },
     { to: '/freelancer/portfolio', label: 'Portfolio', icon: FolderGit2 },
     { to: '/freelancer/messages', label: 'Messages', icon: MessageSquare },
     { to: '/freelancer/settings', label: 'Settings', icon: Settings },
@@ -41,10 +39,8 @@ export const Sidebar: React.FC = () => {
   const adminLinks = [
     { to: '/admin/dashboard', label: 'Command Center', icon: LayoutDashboard },
     { to: '/admin/users', label: 'Users', icon: Users },
-    { to: '/admin/projects', label: 'All Projects', icon: Briefcase },
     { to: '/admin/disputes', label: 'Disputes Station', icon: ShieldAlert },
     { to: '/admin/funds', label: 'Vault Control', icon: Shield },
-    { to: '/admin/ledger', label: 'Full Ledger', icon: History },
     { to: '/admin/reports', label: 'Reports', icon: ShieldAlert },
     { to: '/admin/settings', label: 'Platform Config', icon: Settings },
   ];

@@ -2,9 +2,12 @@ import React from 'react';
 import { ShieldCheck, Lock, Banknote, RefreshCw } from 'lucide-react';
 import { useProjectStore } from '../../store';
 import { FundLifecycleVisualizer } from '../../components/common/FundLifecycleVisualizer';
+import { LedgerTable } from '../../components/common/LedgerTable';
+import { useLedgerStore } from '../../store';
 
 export const AdminFundsPage: React.FC = () => {
   const { projects } = useProjectStore();
+  const entries = useLedgerStore((state) => state.entries);
 
   const custody = projects.reduce((acc, p) => acc + p.amountInCustody, 0);
   const frozen = projects.reduce((acc, p) => acc + p.amountFrozen, 0);
@@ -52,6 +55,8 @@ export const AdminFundsPage: React.FC = () => {
           <span className="text-2xl font-black text-white font-mono mt-1 block">₹{refunded.toLocaleString()}</span>
         </div>
       </div>
+
+      <LedgerTable entries={entries} />
     </div>
   );
 };
