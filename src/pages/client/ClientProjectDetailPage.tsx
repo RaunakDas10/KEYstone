@@ -16,6 +16,7 @@ import {
   Users,
   CalendarDays,
   UserCheck,
+  Sparkles,
 } from 'lucide-react';
 import { useProjectStore, useAuthStore } from '../../store';
 import { SEED_USERS } from '../../mock/seedData';
@@ -25,6 +26,7 @@ import { FundStateBadge } from '../../components/common/FundStateBadge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
+import { analyzeProject } from '../../services/ai/aiService';
 
 export const ClientProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +46,8 @@ export const ClientProjectDetailPage: React.FC = () => {
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState('');
   const [selectionError, setSelectionError] = useState('');
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
+  const [localAiAnalysis, setLocalAiAnalysis] = useState(project.aiAnalysis ?? null);
 
   const currentMilestone = project.milestones[project.currentMilestoneIndex] || project.milestones[0];
   const submission = project.submissions[0];
@@ -69,10 +73,33 @@ export const ClientProjectDetailPage: React.FC = () => {
     setIsReportOpen(false);
     setReportReason('');
   };
-  const handleRating = (e: React.FormEvent) => {
-    e.preventDefault();
-    rateFreelancer(project.id, rating, review, currentUser);
-    setIsRatingOpen(false);
+
+  const handleReanalyze = async () => {
+    setIsReanalyzing(true);
+    try {
+      const result = await analyzeProject({
+        title: project.title,
+        description: project.description,
+        category: project.category,
+        skills: project.skills,
+        budget: project.budget,
+        deadline: project.deadline,
+      });
+      setLocalAiAnalysis({
+        riskScore: result.riskScore,
+        riskLevel: result.riskLevel,
+        confidence: result.confidence,
+        analyzedAt: result.analyzedAt,
+        analysisVersion: result.analysisVersion,
+        risks: result.risks,
+        missingRequirements: result.missingRequirements.map((r) => ({ id: r.id, area: r.area, resolved: r.resolved })),
+        recommendations: result.recommendations,
+        issueCount: result.issueCount,
+        overallHealth: result.overallHealth,
+      });
+    } finally {
+      setIsReanalyzing(false);
+    }
   };
 
   const totalAmount = currentMilestone?.amount || project.budget;
@@ -149,6 +176,78 @@ export const ClientProjectDetailPage: React.FC = () => {
         amountWithdrawable={project.amountWithdrawable}
         totalBudget={project.budget}
       />
+
+      {/* AI PROJECT HEALTH PANEL */}
+      {localAiAnalysis && (() => {
+        const colors = {
+          LOW: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+          MODERATE: { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
+          HIGH: { text: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
+          CRITICAL: { text: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30' },
+        }[localAiAnalysis.riskLevel];
+        const healthIcons = { healthy: '🟢', warning: '🟠', critical: '🔴' } as const;
+        return (
+          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-lg font-bold text-white">AI Project Health</h3>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReanalyze}
+                isLoading={isReanalyzing}
+                leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+              >
+                Run New Analysis
+              </Button>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              {/* Score */}
+              <div className={`p-4 rounded-2xl border ${colors.bg} ${colors.border} space-y-1`}>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Risk Score</p>
+                <p className={`text-3xl font-black font-mono ${colors.text}`}>{localAiAnalysis.riskScore}<span className="text-base text-slate-500">/100</span></p>
+                <p className={`text-xs font-bold ${colors.text}`}>{localAiAnalysis.riskLevel} RISK</p>
+              </div>
+
+              {/* Health Items */}
+              <div className="p-4 rounded-2xl border border-slate-800 bg-slate-950 space-y-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Health Breakdown</p>
+                {localAiAnalysis.risks.slice(0, 4).map((risk) => (
+                  <div key={risk.id} className="flex items-center gap-2">
+                    <span>{risk.severity === 'high' || risk.severity === 'critical' ? '🔴' : risk.severity === 'medium' ? '🟠' : '🟡'}</span>
+                    <span className="text-xs text-slate-300 truncate">{risk.title}</span>
+                  </div>
+                ))}
+                {localAiAnalysis.risks.length === 0 && (
+                  <div className="flex items-center gap-2">
+                    <span>🟢</span>
+                    <span className="text-xs text-emerald-400">No major risks detected</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {localAiAnalysis.recommendations.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI Recommendations</p>
+                {localAiAnalysis.recommendations.slice(0, 3).map((rec, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-[10px] text-indigo-400 font-bold shrink-0 mt-0.5">{i + 1}.</span>
+                    <p className="text-xs text-slate-300 leading-relaxed">{rec}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="text-[10px] text-slate-500">
+              Last analyzed: {new Date(localAiAnalysis.analyzedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · v{localAiAnalysis.analysisVersion}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* CHECKPOINT EVALUATION CONSOLE */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
@@ -233,18 +332,7 @@ export const ClientProjectDetailPage: React.FC = () => {
       {/* Audit Timeline */}
       <TimelineVisualizer project={project} />
 
-      {project.status === 'completed' && currentUser.role === 'client' && !project.freelancerRating && <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><h3 className="text-base font-bold text-white">How was your experience?</h3><p className="text-xs text-slate-400 mt-1">Rate {project.freelancerName} after completing this project.</p></div><Button variant="primary" size="sm" leftIcon={<Star className="w-4 h-4" />} onClick={() => setIsRatingOpen(true)}>Rate freelancer</Button></div>}
-
       {/* APPROVE CONFIRMATION MODAL */}
-      <Modal
-        isOpen={isRatingOpen}
-        onClose={() => setIsRatingOpen(false)}
-        title="Rate completed project"
-        subtitle={`Share feedback for ${project.freelancerName}.`}
-      >
-        <form onSubmit={handleRating} className="space-y-4 text-xs"><div><label className="block font-semibold text-slate-300 mb-1">Rating</label><select value={rating} onChange={(event) => setRating(Number(event.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white">{[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} / 5 stars</option>)}</select></div><div><label className="block font-semibold text-slate-300 mb-1">Review</label><textarea required rows={4} value={review} onChange={(event) => setReview(event.target.value)} placeholder="What did the freelancer do well?" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white" /></div><div className="flex justify-end"><Button type="submit" variant="primary">Publish rating</Button></div></form>
-      </Modal>
-
       <Modal
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}
