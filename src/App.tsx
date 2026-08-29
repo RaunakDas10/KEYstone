@@ -37,6 +37,8 @@ import { NotificationsPage } from './pages/shared/NotificationsPage';
 import { FreelancersDirectoryPage } from './pages/shared/FreelancersDirectoryPage';
 import { StandInPage } from './pages/public/StandInPage';
 import { AccountProfilePage } from './pages/shared/AccountProfilePage';
+import { SettingsPage } from './pages/shared/SettingsPage';
+import { TransactionsPage } from './pages/shared/TransactionsPage';
 
 const PublicLayout: React.FC = () => {
   const location = useLocation();
@@ -122,9 +124,9 @@ export function App() {
             <Route path="/client/projects/new" element={<ClientNewProjectPage />} />
             <Route path="/client/projects/:id" element={<ClientProjectDetailPage />} />
             <Route path="/client/messages" element={<ChatPage />} />
-            <Route path="/client/transactions" element={<AdminLedgerPage />} />
+            <Route path="/client/transactions" element={<TransactionsPage />} />
             <Route path="/client/notifications" element={<NotificationsPage />} />
-            <Route path="/client/settings" element={<ClientOverview />} />
+            <Route path="/client/settings" element={<SettingsPage />} />
           </Route>
         </Route>
 
@@ -136,11 +138,11 @@ export function App() {
             <Route path="/freelancer/projects" element={<FreelancerOverview />} />
             <Route path="/freelancer/projects/:id" element={<FreelancerProjectDetailPage />} />
             <Route path="/freelancer/income" element={<FreelancerIncomePage />} />
-            <Route path="/freelancer/transactions" element={<FreelancerIncomePage />} />
+            <Route path="/freelancer/transactions" element={<TransactionsPage />} />
             <Route path="/freelancer/portfolio" element={<FreelancerProfilePage />} />
             <Route path="/freelancer/messages" element={<ChatPage />} />
             <Route path="/freelancer/notifications" element={<NotificationsPage />} />
-            <Route path="/freelancer/settings" element={<FreelancerOverview />} />
+            <Route path="/freelancer/settings" element={<SettingsPage />} />
           </Route>
         </Route>
 
@@ -155,7 +157,7 @@ export function App() {
             <Route path="/admin/ledger" element={<AdminLedgerPage />} />
             <Route path="/admin/notifications" element={<NotificationsPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
-            <Route path="/admin/settings" element={<AdminDashboard />} />
+            <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>
 

@@ -22,7 +22,6 @@ export const Sidebar: React.FC = () => {
 
   const clientLinks = [
     { to: '/client/overview', label: 'Overview', icon: LayoutDashboard },
-    { to: '/client/projects', label: 'Projects', icon: Briefcase },
     { to: '/client/messages', label: 'Messages', icon: MessageSquare },
     { to: '/client/transactions', label: 'Transactions', icon: Receipt },
     { to: '/client/settings', label: 'Settings', icon: Settings },
