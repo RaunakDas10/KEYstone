@@ -9,6 +9,7 @@ export interface INotification {
   timestamp: string;
   read: boolean;
   link?: string;
+  projectId?: string;
 }
 
 const NotificationSchema = new Schema<INotification>(
@@ -25,6 +26,7 @@ const NotificationSchema = new Schema<INotification>(
     timestamp: { type: String, default: () => new Date().toISOString() },
     read: { type: Boolean, default: false },
     link: { type: String },
+    projectId: { type: String, index: true },
   },
   {
     timestamps: true,

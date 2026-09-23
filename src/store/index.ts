@@ -276,8 +276,10 @@ interface ProjectState {
   setActiveProjectId: (id: string | null) => void;
   fetchInitialData: () => Promise<void>;
   createProject: (projectData: Partial<Project>) => Project;
+  inviteFreelancerToProject: (projectId: string, client: User, freelancer: User) => Promise<boolean>;
   applyToProject: (projectId: string, freelancer: User) => Promise<boolean>;
   selectFreelancer: (projectId: string, freelancerId: string) => Promise<boolean>;
+  respondToProjectInvitation: (projectId: string, freelancer: User, response: 'accept' | 'reject') => Promise<boolean>;
   submitCheckpoint: (
     projectId: string,
     milestoneId: string,
@@ -377,7 +379,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       access,
       applicationDeadline: access === 'open' ? projectData.applicationDeadline : undefined,
       applications: [],
-      status: access === 'open' ? 'selection_pending' : 'active',
+      status: access === 'open' ? 'selection_pending' : 'invitation_pending',
       fundState: 'IN_CUSTODY',
       amountInCustody: projectData.budget || 50000,
       amountFrozen: 0,
@@ -440,9 +442,43 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       'FUND_DEPOSITED'
     );
 
+    if (access === 'invited' && newProject.freelancerId) {
+      useNotificationStore.getState().addNotification({
+        userId: newProject.freelancerId,
+        projectId: newProject.id,
+        type: 'project',
+        title: 'Project invitation awaiting your response',
+        description: `${newProject.clientName} invited you to "${newProject.title}". Review the scope and accept or decline the work.`,
+        link: '/freelancer/notifications',
+      });
+    }
+
     api.createProject(newProject).catch(() => {});
 
     return newProject;
+  },
+
+  inviteFreelancerToProject: async (projectId, client, freelancer) => {
+    const project = get().projects.find((item) => item.id === projectId);
+    if (!project || project.clientId !== client.id || project.freelancerId || !['draft', 'selection_pending'].includes(project.status)) {
+      return false;
+    }
+
+    try {
+      const savedProject = await api.inviteFreelancerToProject(projectId, client.id, freelancer.id);
+      set((state) => ({ projects: state.projects.map((item) => item.id === projectId ? savedProject : item) }));
+      useNotificationStore.getState().addNotification({
+        userId: freelancer.id,
+        projectId,
+        type: 'project',
+        title: 'Project invitation awaiting your response',
+        description: `${client.name} invited you to "${savedProject.title}". Review the scope and accept or decline the work.`,
+        link: '/freelancer/notifications',
+      });
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   applyToProject: async (projectId, freelancer) => {
@@ -495,7 +531,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return false;
     }
 
-    const selectedAt = new Date().toISOString();
     set((state) => ({
       projects: state.projects.map((item) =>
         item.id === projectId
@@ -505,9 +540,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
               freelancerName: application.freelancerName,
               freelancerAvatar: application.freelancerAvatar,
               freelancerTitle: application.freelancerTitle,
-              selectedAt,
-              status: 'active',
-              lastActivityAt: selectedAt,
+              status: 'invitation_pending',
+              lastActivityAt: new Date().toISOString(),
             }
           : item
       ),
@@ -515,15 +549,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     useMessageStore.getState().addSystemEvent(
       projectId,
-      `FREELANCER SELECTED: ${application.freelancerName} can now begin work and submit project checkpoints.`,
+      `FREELANCER SELECTED: ${application.freelancerName} received a project invitation and must accept before work begins.`,
       'PROJECT_STARTED'
     );
     useNotificationStore.getState().addNotification({
       userId: application.freelancerId,
+      projectId,
       type: 'project',
-      title: 'You were selected for a project',
-      description: `${project.clientName} selected you for "${project.title}". Your project workspace is ready.`,
-      link: `/freelancer/projects/${projectId}`,
+      title: 'Project invitation awaiting your response',
+      description: `${project.clientName} selected you for "${project.title}". Review the offer and accept or decline the work.`,
+      link: '/freelancer/notifications',
     });
 
     api.selectFreelancer(projectId, freelancerId).then((savedProject) => {
@@ -533,13 +568,28 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return true;
   },
 
+  respondToProjectInvitation: async (projectId, freelancer, response) => {
+    const project = get().projects.find((item) => item.id === projectId);
+    if (!project || project.access !== 'invited' || project.status !== 'invitation_pending' || project.freelancerId !== freelancer.id) {
+      return false;
+    }
+
+    try {
+      const savedProject = await api.respondToProjectInvitation(projectId, freelancer.id, response);
+      set((state) => ({ projects: state.projects.map((item) => item.id === projectId ? savedProject : item) }));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   submitCheckpoint: (projectId, milestoneId, submissionData) => {
     const targetProject = get().projects.find((project) => project.id === projectId);
     const targetMilestone = targetProject?.milestones.find((milestone) => milestone.id === milestoneId);
     const existingSubmission = targetProject?.submissions.find((submission) => submission.milestoneId === milestoneId);
     // One milestone has one demo ticket. A submitted ticket freezes this milestone;
     // the freelancer can work on another IN_CUSTODY milestone, never resubmit this one.
-    if (!targetMilestone || targetMilestone.fundState !== 'IN_CUSTODY' || existingSubmission) return;
+    if (!targetProject || (targetProject.status !== 'active' && targetProject.status !== 'in_review') || !targetMilestone || targetMilestone.fundState !== 'IN_CUSTODY' || existingSubmission) return;
 
     const subId = `sub_${Date.now()}`;
     const completedDeliverableIds = submissionData.completedDeliverableIds || [];

@@ -132,6 +132,10 @@ export const FreelancerProjectDetailPage: React.FC = () => {
     );
   }
 
+  if (project.status === 'invitation_pending' && project.freelancerId === currentUser.id) {
+    return <div className="mx-auto max-w-2xl rounded-3xl border border-blue-500/30 bg-slate-900/90 p-8 text-center shadow-2xl"><Clock className="mx-auto h-8 w-8 text-blue-400" /><h1 className="mt-3 text-xl font-bold text-white">Project invitation awaiting your response</h1><p className="mt-2 text-xs leading-relaxed text-slate-400">Review the invitation from {project.clientName} in Notifications. The workspace and milestone tools unlock only after you accept.</p><Link to="/freelancer/notifications" className="mt-5 inline-block"><Button variant="primary" size="sm">Review invitation</Button></Link></div>;
+  }
+
   if (project.freelancerId !== currentUser.id) {
     return <div className="mx-auto max-w-2xl rounded-3xl border border-slate-800 bg-slate-900/90 p-8 text-center shadow-2xl"><Lock className="mx-auto h-8 w-8 text-slate-500" /><h1 className="mt-3 text-xl font-bold text-white">Project workspace unavailable</h1><p className="mt-2 text-xs leading-relaxed text-slate-400">Only the freelancer selected for this project can open its work and checkpoint submission tools.</p><Link to="/freelancer/overview" className="mt-5 inline-block"><Button variant="outline" size="sm">Back to Overview</Button></Link></div>;
   }

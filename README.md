@@ -1,100 +1,81 @@
-# KEYstone Protocol
+<img src="src/assets/hero-bg.png" width="100%" alt="Readme banner"
+style="border-radius: 15px; box-shadow: inset 0 -50px 100px rgba(0,0,0,0.4);" />
 
-KEYstone is an escrow and milestone-based project governance platform for clients and freelancers with immutable ledger tracking, 90/10 fair resolution, 7-day auto-unlock protection, and admin arbitration.
+# KEYstone 🔑
 
----
+**KEYstone** is an escrow-protected freelancing and project-governance platform designed to make remote work safe. By locking client funds in custody and releasing them only on milestone approval, KEYstone turns risky gigs into accountable work journeys.
 
-## 🛠️ Tech Stack
+Clients post milestones with budgets and deadlines, freelancers submit checkpoints with proof of work, and every fund move — `IN_CUSTODY → FROZEN → WITHDRAWABLE → PAID` — is written to an immutable ledger. With 90/10 fair rejection, 7-day auto-unlock protection, and admin arbitration, nobody delivers without pay and nobody pays without delivery. So that no freelancer fears delivering work without getting paid.
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Zustand, Lucide React, Recharts
-- **Backend & API**: Node.js, Express, TypeScript (`tsx`), CORS, Dotenv
-- **Database**: **MongoDB** with Mongoose ODM
+## 🌟 Key Features
 
----
+### 🤝 Milestone & Escrow Protection
+- **Secure Funds:** Clients lock full budget in escrow on project creation with `FUND_DEPOSITED` ledger proof.
+- **Checkpoint Flow:** Freelancers submit demo/GitHub proof, clients approve to release `FROZEN → WITHDRAWABLE → PAID`.
+- **Open & Invited Hiring:** Post to marketplace or invite directly, with application deadlines and offer accept/reject.
 
-## 🗄️ Database Architecture (MongoDB)
+### 🛡️ Ironclad Trust & Ledger
+- **Immutable Ledger:** Every deposit, freeze, release, refund, dispute and payout is append-only with hash + timestamp.
+- **Reputation System:** TrustScore 0-100 from profile completeness, completed projects, and on-time rate, plus completion badges.
+- **Live Tracking:** FundLifecycleVisualizer, FundStateBadge, TimelineVisualizer, and system chat events for full transparency.
 
-The project uses MongoDB as the primary persistent database with the following collections and Mongoose models:
+### 🚨 Disputes & SOS Tools
+- **One-Tap Dispute:** Either party can freeze funds to `DISPUTED` and alert counterparty + admin instantly.
+- **90/10 Fair Resolution:** Rejected work auto-splits 90% refund to client, 10% to builder — no deadlock.
+- **Auto-Unlock & Kill-Fee:** 7-day inactivity auto-releases pay, client cancel pays 30% kill-fee, admin can custom-split.
 
-1. **`User`** (`server/models/User.ts`): User accounts (clients, freelancers, admins), trust scores, completed projects, hourly rates.
-2. **`Project`** (`server/models/Project.ts`): Projects with milestone structures, fund custody states (`IN_CUSTODY`, `FROZEN`, `WITHDRAWABLE`, `PAID`, `REFUNDED`, `DISPUTED`), checkpoint submissions, and ratings.
-3. **`LedgerEntry`** (`server/models/LedgerEntry.ts`): Immutable escrow audit ledger with event types, state transitions, cryptographic hashes, and timestamps.
-4. **`Dispute`** (`server/models/Dispute.ts`): Arbitration records, evidence, and custom financial settlement splits.
-5. **`Message`** (`server/models/Message.ts`): Project communication and automated platform protocol events.
-6. **`Notification`** (`server/models/Notification.ts`): Real-time notifications for milestone reviews, fund movements, and system alerts.
-7. **`Report`** (`server/models/Report.ts`): Platform moderation reports.
+## 🛠️ Technology Stack
 
----
+- **Frontend:** React 19 + Vite, Tailwind CSS v4, Zustand, Lucide React, Recharts
+- **Backend/Database:** Node.js, Express, MongoDB + Mongoose (User, Project, LedgerEntry, Dispute, Message, Notification, Report)
+- **Auth & Verification:** Google OAuth (`google-auth-library`), SMTP OTP via Nodemailer
+- **AI Talent Matching:** Gemini `gemini-2.5-flash` server-only (`POST /api/ai/talent-search`) with fallback ranking
+- **State Management:** Zustand
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
-### 1. Configure Environment Variables
-Create a `.env` file in the root directory (or copy from `.env.example`):
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/keystone
-GEMINI_API_KEY=your_server_only_gemini_key
-# Optional; defaults to gemini-2.5-flash
-GEMINI_FAST_MODEL=gemini-2.5-flash
-# Required for email/password accounts
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_gmail_app_password
-SMTP_FROM=your_email@gmail.com
-AUTH_OTP_SECRET=a_long_random_secret
-# Required for Google Sign-In
-GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
-# Or use MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/keystone?retryWrites=true&w=majority
-```
+### Prerequisites
+- Node.js (v20+ recommended)
+- MongoDB local or MongoDB Atlas account
+- Gmail App Password for OTP + Google OAuth Client ID for Sign-In
 
-Email/password registration sends a six-digit code through SMTP. Users can only
-sign in after entering that code. Google Sign-In verifies the Google ID token on
-the server; add `http://localhost:5173` and your deployed domain to the OAuth
-client's **Authorized JavaScript origins** in Google Cloud Console.
+### Installation
 
-### 2. Install Dependencies
-```bash
-npm install
-```
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Aritra7070/KeyStone.git
+   cd KeyStone/KEYstone
+   ```
 
-### 3. Run Frontend & Backend Together
-```bash
-npm run dev:all
-```
-- **Frontend**: `http://localhost:5173`
-- **Backend API**: `http://localhost:5000`
-- **Health Check**: `http://localhost:5000/api/health`
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-### 4. Other Available Commands
-| Command | Description |
-|---|---|
-| `npm run dev` | Start the Vite frontend dev server |
-| `npm run server` | Start the Express backend server with MongoDB connection |
-| `npm run preview` | Preview the production frontend and start its local API server |
-| `npm run db:seed` | Seed MongoDB with initial users, demo projects, ledger entries, and messages |
-| `npm run build` | Compile TypeScript and build production frontend assets |
+3. **Environment Setup:**
+   Create a `.env` file in the root based on `.env.example`:
+   ```env
+   PORT=5000
+   MONGODB_URI=mongodb://localhost:27017/keystone
+   GEMINI_API_KEY=your_server_only_gemini_key
+   GEMINI_FAST_MODEL=gemini-2.5-flash
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USER=your_email@gmail.com
+   SMTP_PASS=your_gmail_app_password
+   SMTP_FROM=your_email@gmail.com
+   AUTH_OTP_SECRET=replace_with_a_long_random_secret
+   GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+   ```
 
----
+4. **Start the Development Servers:**
+   ```bash
+   npm run dev:all
+   ```
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:5000
+   - Health: http://localhost:5000/api/health
 
-## 📡 REST API Endpoints
-
-- `GET /api/health` - MongoDB connection status & server health
-- `POST /api/seed` - Trigger database seeding
-- `GET/PUT /api/auth/users` - User profiles and role switching
-- `GET/POST /api/projects` - Project CRUD, milestones, checkpoint submissions, approvals, 90/10 resolution
-- `GET/POST /api/ledger` - Immutable escrow transaction ledger
-- `GET/POST /api/disputes` - Dispute management and admin arbitration
-- `GET/POST /api/messages` - Project chat & system audit events
-- `GET/POST/PUT /api/notifications` - Notifications management
-- `POST /api/payouts/withdraw` - Freelancer earnings withdrawal
-- `POST /api/ai/talent-search` - Authenticated AI Mode freelancer recommendations
-
----
-
-## AI Mode talent search
-
-On the client and freelancer dashboards, the **AI Mode** button turns talent search into a plain-language request (for example, "I need a mobile app but do not know the technology"). The React app calls `POST /api/ai/talent-search`; Gemini is called only by the Express server and the API key is never returned to the browser.
-
-Gemini ranks up to five freelancer profiles using relevant skills and KEYStone reliability signals. If `GEMINI_API_KEY` is absent or Gemini is unavailable, the endpoint returns a score-based skills and reliability ranking instead.
+## 📚 API & Core Services
+For escrow lifecycle, milestone approvals, 90/10 resolution, and AI talent search, see server routes:
+`server/routes/projects.ts`, `ledger.ts`, `disputes.ts`, `payouts.ts`, `ai.ts`

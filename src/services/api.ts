@@ -93,6 +93,11 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(updates),
     }),
+  inviteFreelancerToProject: (projectId: string, clientId: string, freelancerId: string) =>
+    request<Project>(`/projects/${projectId}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ clientId, freelancerId }),
+    }),
   applyToProject: (projectId: string, freelancerId: string) =>
     request<Project>(`/projects/${projectId}/applications`, {
       method: 'POST',
@@ -102,6 +107,11 @@ export const api = {
     request<Project>(`/projects/${projectId}/select-freelancer`, {
       method: 'POST',
       body: JSON.stringify({ freelancerId }),
+    }),
+  respondToProjectInvitation: (projectId: string, freelancerId: string, response: 'accept' | 'reject') =>
+    request<Project>(`/projects/${projectId}/invitation/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ freelancerId, response }),
     }),
   submitCheckpoint: (
     projectId: string,

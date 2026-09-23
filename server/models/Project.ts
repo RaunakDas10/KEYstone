@@ -89,7 +89,7 @@ export interface IProject {
   applicationDeadline?: string;
   applications: IFreelancerApplication[];
   selectedAt?: string;
-  status: 'draft' | 'selection_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled' | 'cancelled_by_customer';
+  status: 'draft' | 'selection_pending' | 'invitation_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled' | 'cancelled_by_customer';
   fundState: 'IN_CUSTODY' | 'FROZEN' | 'WITHDRAWABLE' | 'REFUNDED' | 'PAID' | 'DISPUTED';
   amountInCustody: number;
   amountFrozen: number;
@@ -224,7 +224,7 @@ const ProjectSchema = new Schema<IProject>(
     selectedAt: { type: String },
     status: {
       type: String,
-      enum: ['draft', 'selection_pending', 'active', 'in_review', 'completed', 'disputed', 'cancelled', 'cancelled_by_customer'],
+      enum: ['draft', 'selection_pending', 'invitation_pending', 'active', 'in_review', 'completed', 'disputed', 'cancelled', 'cancelled_by_customer'],
       default: 'active',
     },
     fundState: {

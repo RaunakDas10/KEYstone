@@ -148,7 +148,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       access,
       applicationDeadline: access === 'open' ? projectData.applicationDeadline : undefined,
       applications: [],
-      status: access === 'open' ? 'selection_pending' : 'active',
+      status: access === 'open' ? 'selection_pending' : 'invitation_pending',
       milestones,
       submissions: [],
       createdAt: new Date().toISOString(),
@@ -156,6 +156,20 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     });
 
     const savedProject = await newProject.save();
+
+    if (access === 'invited' && savedProject.freelancerId) {
+      await new NotificationModel({
+        id: `notif_${Date.now()}_invitation`,
+        userId: savedProject.freelancerId,
+        projectId: savedProject.id,
+        type: 'project',
+        title: 'Project invitation awaiting your response',
+        description: `${savedProject.clientName} invited you to "${savedProject.title}". Review the scope and accept or decline the work.`,
+        timestamp: 'Just now',
+        read: false,
+        link: '/freelancer/notifications',
+      }).save();
+    }
 
     // Create deposit ledger entry
     const ledgerEntry = new LedgerEntryModel({
@@ -233,6 +247,59 @@ router.patch('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// POST invite a specific freelancer to a customer-owned project before work starts.
+router.post('/:id/invite', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { clientId, freelancerId } = req.body || {};
+    const project = await ProjectModel.findOne({ id: req.params.id });
+    if (!project) {
+      res.status(404).json({ error: 'Project not found.' });
+      return;
+    }
+    if (project.clientId !== clientId) {
+      res.status(403).json({ error: 'Only the customer who created this project can send an invitation.' });
+      return;
+    }
+    if (project.freelancerId || !['draft', 'selection_pending'].includes(project.status)) {
+      res.status(409).json({ error: 'Only an unassigned project that has not started can be invited to a freelancer.' });
+      return;
+    }
+    const freelancer = await UserModel.findOne({ id: freelancerId, role: 'freelancer' });
+    if (!freelancer) {
+      res.status(404).json({ error: 'Freelancer not found.' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    project.access = 'invited';
+    project.freelancerId = freelancer.id;
+    project.freelancerName = freelancer.name;
+    project.freelancerAvatar = freelancer.avatar;
+    project.freelancerTitle = freelancer.title;
+    project.applicationDeadline = undefined;
+    project.applications = [];
+    project.status = 'invitation_pending';
+    project.lastActivityAt = now;
+    await project.save();
+
+    await new NotificationModel({
+      id: `notif_${Date.now()}_invitation`,
+      userId: freelancer.id,
+      projectId: project.id,
+      type: 'project',
+      title: 'Project invitation awaiting your response',
+      description: `${project.clientName} invited you to "${project.title}". Review the scope and accept or decline the work.`,
+      timestamp: 'Just now',
+      read: false,
+      link: '/freelancer/notifications',
+    }).save();
+
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // POST customer cancellation with a deterministic kill fee for the next unfrozen milestone
 router.post('/:id/cancel', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -274,6 +341,60 @@ router.post('/:id/cancel', async (req: Request, res: Response): Promise<void> =>
     await new LedgerEntryModel({ id: `led_${Date.now()}_refund`, projectId: project.id, projectTitle: project.title, actorId: project.clientId, actorName: project.clientName, actorRole: 'client', eventType: 'CANCELLATION_REFUND', previousState: 'IN_CUSTODY', newState: 'REFUNDED', amount: refundAmount, timestamp: now, referenceId: `CANCEL_REFUND_${Date.now()}`, hash: hash(), notes: `Customer cancellation refund after kill fee. Reason: ${reason || 'Not provided'}` }).save();
     await new MessageModel({ id: `msg_${Date.now()}`, projectId: project.id, senderId: 'system', senderName: 'KEYStone Protocol', senderRole: 'admin', content: `CUSTOMER CANCELLATION: ₹${killFee.toLocaleString()} frozen as builder compensation; ₹${refundAmount.toLocaleString()} refunded to customer.`, timestamp: now, isSystemEvent: true, systemEventType: 'CANCELLATION_KILL_FEE' }).save();
     if (project.freelancerId) await new NotificationModel({ id: `notif_${Date.now()}_kill`, userId: project.freelancerId, type: 'payment', title: 'Customer cancellation compensation secured', description: `₹${killFee.toLocaleString()} was frozen as your cancellation protection for "${project.title}".`, timestamp: 'Just now', read: false, link: '/freelancer/income' }).save();
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// POST freelancer response to an invited project. Work stays locked until accepted.
+router.post('/:id/invitation/respond', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { freelancerId, response } = req.body || {};
+    const project = await ProjectModel.findOne({ id: req.params.id });
+    if (!project) {
+      res.status(404).json({ error: 'Project not found.' });
+      return;
+    }
+    if (project.access !== 'invited' || project.status !== 'invitation_pending') {
+      res.status(409).json({ error: 'This project invitation has already been answered or is no longer available.' });
+      return;
+    }
+    if (!freelancerId || project.freelancerId !== freelancerId) {
+      res.status(403).json({ error: 'Only the invited freelancer can respond to this invitation.' });
+      return;
+    }
+    if (response !== 'accept' && response !== 'reject') {
+      res.status(400).json({ error: 'Invitation response must be accept or reject.' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    if (response === 'accept') {
+      project.status = 'active';
+      project.selectedAt = now;
+      project.lastActivityAt = now;
+      await project.save();
+      await recalculateTrustScore(freelancerId);
+
+      await new MessageModel({ id: `msg_${Date.now()}`, projectId: project.id, senderId: 'system', senderName: 'KEYStone Protocol', senderRole: 'admin', content: `PROJECT INVITATION ACCEPTED: ${project.freelancerName || 'Freelancer'} accepted the work. The project workspace is now active.`, timestamp: now, isSystemEvent: true, systemEventType: 'PROJECT_STARTED' }).save();
+      await new NotificationModel({ id: `notif_${Date.now()}_accepted`, userId: project.clientId, projectId: project.id, type: 'project', title: 'Project invitation accepted', description: `${project.freelancerName || 'Your freelancer'} accepted "${project.title}" and can begin work.`, timestamp: 'Just now', read: false, link: `/client/projects/${project.id}` }).save();
+    } else {
+      const refundAmount = project.amountInCustody + project.amountFrozen;
+      project.status = 'cancelled';
+      project.fundState = 'REFUNDED';
+      project.amountInCustody = 0;
+      project.amountFrozen = 0;
+      project.amountRefunded += refundAmount;
+      project.lastActivityAt = now;
+      await project.save();
+      await recalculateTrustScore(freelancerId);
+
+      await new LedgerEntryModel({ id: `led_${Date.now()}_invitation_declined`, projectId: project.id, projectTitle: project.title, actorId: freelancerId, actorName: project.freelancerName || 'Freelancer', actorRole: 'freelancer', eventType: 'INVITATION_DECLINED_REFUND', previousState: 'IN_CUSTODY', newState: 'REFUNDED', amount: refundAmount, timestamp: now, referenceId: `INVITE_DECLINED_${Date.now()}`, hash: `0x${Math.random().toString(16).substring(2)}${Math.random().toString(16).substring(2)}`, notes: `The invited freelancer declined before work began. Full project funds were returned to the customer.` }).save();
+      await new MessageModel({ id: `msg_${Date.now()}`, projectId: project.id, senderId: 'system', senderName: 'KEYStone Protocol', senderRole: 'admin', content: `PROJECT INVITATION DECLINED: No work began, so the full project deposit was returned to the customer.`, timestamp: now, isSystemEvent: true, systemEventType: 'CANCELLATION_REFUND' }).save();
+      await new NotificationModel({ id: `notif_${Date.now()}_declined`, userId: project.clientId, projectId: project.id, type: 'project', title: 'Project invitation declined', description: `${project.freelancerName || 'The freelancer'} declined "${project.title}". No work began, so the full deposit was refunded.`, timestamp: 'Just now', read: false, link: `/client/projects/${project.id}` }).save();
+    }
+
     res.json(project);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
@@ -385,11 +506,9 @@ router.post('/:id/select-freelancer', async (req: Request, res: Response): Promi
     project.freelancerName = application.freelancerName;
     project.freelancerAvatar = application.freelancerAvatar;
     project.freelancerTitle = application.freelancerTitle;
-    project.selectedAt = new Date().toISOString();
-    project.status = 'active';
+    project.status = 'invitation_pending';
     project.lastActivityAt = new Date().toISOString();
     await project.save();
-    await recalculateTrustScore(application.freelancerId);
 
     await new MessageModel({
       id: `msg_${Date.now()}`,
@@ -397,7 +516,7 @@ router.post('/:id/select-freelancer', async (req: Request, res: Response): Promi
       senderId: 'system',
       senderName: 'KEYStone Protocol',
       senderRole: 'admin',
-      content: `FREELANCER SELECTED: ${application.freelancerName} can now begin work and submit project checkpoints.`,
+      content: `FREELANCER SELECTED: ${application.freelancerName} received a project invitation and must accept before work begins.`,
       timestamp: new Date().toISOString(),
       isSystemEvent: true,
       systemEventType: 'PROJECT_STARTED',
@@ -406,12 +525,13 @@ router.post('/:id/select-freelancer', async (req: Request, res: Response): Promi
     await new NotificationModel({
       id: `notif_${Date.now()}`,
       userId: application.freelancerId,
+      projectId: project.id,
       type: 'project',
-      title: 'You were selected for a project',
-      description: `${project.clientName} selected you for "${project.title}". Your project workspace is ready.`,
+      title: 'Project invitation awaiting your response',
+      description: `${project.clientName} selected you for "${project.title}". Review the offer and accept or decline the work.`,
       timestamp: 'Just now',
       read: false,
-      link: `/freelancer/projects/${project.id}`,
+      link: '/freelancer/notifications',
     }).save();
 
     res.json(project);
@@ -429,6 +549,10 @@ router.post('/:id/milestones/:milestoneId/submit', async (req: Request, res: Res
     const project = await ProjectModel.findOne({ id: projectId });
     if (!project) {
       res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+    if (project.status !== 'active' && project.status !== 'in_review') {
+      res.status(409).json({ error: 'The freelancer must accept this invitation before milestone work can begin.' });
       return;
     }
 

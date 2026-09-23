@@ -6,23 +6,31 @@ import { TrustScoreCard } from '../../components/common/TrustScoreCard';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
-import { useAuthStore, useNotificationStore, useProjectStore } from '../../store';
+import { useAuthStore, useProjectStore } from '../../store';
 
 export const FreelancerProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [inviteError, setInviteError] = useState('');
   const { currentUser, isAuthenticated } = useAuthStore();
-  const { projects } = useProjectStore();
-  const { addNotification } = useNotificationStore();
+  const { projects, inviteFreelancerToProject } = useProjectStore();
   const [selectedProjectId, setSelectedProjectId] = useState('');
 
   const freelancer = SEED_USERS.freelancer; // default to Ananya Roy for rich view
 
-  const handleSendInvite = (e: React.FormEvent) => {
+  const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedProject = projects.find((project) => project.id === selectedProjectId) || projects[0];
-    if (selectedProject) addNotification({ userId: freelancer.id, type: 'project', title: 'New project invitation', description: `${currentUser.name} invited you to ${selectedProject.title}.`, link: `/freelancer/projects/${selectedProject.id}` });
+    setInviteError('');
+    if (!selectedProjectId) {
+      setInviteError('Select an unassigned project before sending an invitation.');
+      return;
+    }
+    const invited = await inviteFreelancerToProject(selectedProjectId, currentUser, freelancer);
+    if (!invited) {
+      setInviteError('This project can no longer be invited. Refresh the page and choose another project.');
+      return;
+    }
     setInviteSuccess(true);
     setTimeout(() => {
       setInviteSuccess(false);
@@ -148,7 +156,7 @@ export const FreelancerProfilePage: React.FC = () => {
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         title={`Invite ${freelancer.name} to Project`}
-        subtitle="Select an existing active project or start a new protected project contract."
+        subtitle="Choose an unassigned project. The freelancer must accept before work can begin."
       >
         {inviteSuccess ? (
           <div className="text-center py-8 space-y-3">
@@ -162,8 +170,9 @@ export const FreelancerProfilePage: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-300 mb-1">Select Project</label>
               <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500">
                 <option value="">Select a project</option>
-                {projects.filter((project) => project.clientId === currentUser.id || project.access === 'open').map((project) => <option key={project.id} value={project.id}>{project.title} (₹{project.budget.toLocaleString()})</option>)}
+                {projects.filter((project) => project.clientId === currentUser.id && !project.freelancerId && (project.status === 'draft' || project.status === 'selection_pending')).map((project) => <option key={project.id} value={project.id}>{project.title} (₹{project.budget.toLocaleString()})</option>)}
               </select>
+              {inviteError && <p className="mt-2 text-xs text-rose-300">{inviteError}</p>}
             </div>
 
             <div>

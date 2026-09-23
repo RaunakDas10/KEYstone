@@ -2,7 +2,7 @@ export type UserRole = 'client' | 'freelancer' | 'admin';
 
 export type FundState = 'IN_CUSTODY' | 'FROZEN' | 'WITHDRAWABLE' | 'REFUNDED' | 'PAID' | 'DISPUTED';
 
-export type ProjectStatus = 'draft' | 'selection_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled' | 'cancelled_by_customer';
+export type ProjectStatus = 'draft' | 'selection_pending' | 'invitation_pending' | 'active' | 'in_review' | 'completed' | 'disputed' | 'cancelled' | 'cancelled_by_customer';
 export type ProjectAccess = 'invited' | 'open';
 
 export type CheckpointStatus = 'pending' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'disputed';
@@ -270,6 +270,7 @@ export interface Notification {
   timestamp: string;
   read: boolean;
   link?: string;
+  projectId?: string;
 }
 
 export interface PortfolioItem {

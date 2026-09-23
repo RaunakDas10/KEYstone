@@ -11,15 +11,25 @@ import {
   ArrowRight,
   Sparkles,
   Inbox,
+  CalendarDays,
+  IndianRupee,
 } from 'lucide-react';
-import { useAuthStore, useNotificationStore } from '../../store';
+import { useAuthStore, useNotificationStore, useProjectStore } from '../../store';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Modal';
 import type { Notification } from '../../types';
 
 export const NotificationsPage: React.FC = () => {
   const { currentUser } = useAuthStore();
   const { notifications, markAsRead } = useNotificationStore();
+  const { projects, respondToProjectInvitation } = useProjectStore();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'unread' | 'payment' | 'project'>('all');
+  const [invitationProjectId, setInvitationProjectId] = useState<string | null>(null);
+  const [invitationError, setInvitationError] = useState('');
+  const [isResponding, setIsResponding] = useState(false);
+
+  const invitationProject = projects.find((project) => project.id === invitationProjectId);
 
   const userNotifications = notifications.filter(
     (notification) => notification.userId === currentUser.id || notification.userId === 'all'
@@ -36,9 +46,31 @@ export const NotificationsPage: React.FC = () => {
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
+    const isPendingInvitation = currentUser.role === 'freelancer'
+      && Boolean(notification.projectId)
+      && projects.some((project) => project.id === notification.projectId && project.freelancerId === currentUser.id && project.status === 'invitation_pending');
+    if (isPendingInvitation) {
+      setInvitationError('');
+      setInvitationProjectId(notification.projectId!);
+      return;
+    }
     if (notification.link) {
       navigate(notification.link);
     }
+  };
+
+  const handleInvitationResponse = async (response: 'accept' | 'reject') => {
+    if (!invitationProject) return;
+    setInvitationError('');
+    setIsResponding(true);
+    const responded = await respondToProjectInvitation(invitationProject.id, currentUser, response);
+    setIsResponding(false);
+    if (!responded) {
+      setInvitationError('This invitation is no longer available. Refresh your notifications and try again.');
+      return;
+    }
+    setInvitationProjectId(null);
+    if (response === 'accept') navigate(`/freelancer/projects/${invitationProject.id}`);
   };
 
   const handleMarkAllAsRead = () => {
@@ -191,6 +223,24 @@ export const NotificationsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={Boolean(invitationProject)}
+        onClose={() => !isResponding && setInvitationProjectId(null)}
+        title="Project invitation"
+        subtitle="Review the work terms before you commit."
+        footer={<><Button variant="outline" onClick={() => setInvitationProjectId(null)} disabled={isResponding}>Decide later</Button><Button variant="danger" onClick={() => handleInvitationResponse('reject')} isLoading={isResponding}>Decline project</Button><Button variant="emerald" onClick={() => handleInvitationResponse('accept')} isLoading={isResponding}>Accept project</Button></>}
+      >
+        {invitationProject && <div className="space-y-5">
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Invitation from {invitationProject.clientName}</p><h4 className="mt-1 text-lg font-bold text-white">{invitationProject.title}</h4><p className="mt-2 text-xs leading-relaxed text-slate-300">{invitationProject.description || 'No additional project description was provided.'}</p></div>
+          <div className="grid gap-3 sm:grid-cols-2"><InfoRow icon={<IndianRupee className="h-4 w-4" />} label="Secured project budget" value={`₹${invitationProject.budget.toLocaleString()}`} /><InfoRow icon={<CalendarDays className="h-4 w-4" />} label="Project deadline" value={new Date(`${invitationProject.deadline}T00:00:00`).toLocaleDateString()} /></div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4"><p className="text-xs font-semibold text-white">{invitationProject.milestones.length} funded milestone{invitationProject.milestones.length === 1 ? '' : 's'}</p><div className="mt-3 space-y-2">{invitationProject.milestones.map((milestone, index) => <div key={milestone.id} className="flex items-center justify-between gap-3 text-xs"><span className="text-slate-300">{index + 1}. {milestone.title}</span><span className="shrink-0 font-mono font-bold text-emerald-300">₹{milestone.amount.toLocaleString()}</span></div>)}</div></div>
+          <p className="text-[11px] leading-relaxed text-slate-400">Accepting activates the workspace. Declining before work begins returns the full escrow deposit to the client, with no penalty to you.</p>
+          {invitationError && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">{invitationError}</p>}
+        </div>}
+      </Modal>
     </div>
   );
 };
+
+const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => <div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{icon}{label}</span><span className="mt-1 block text-sm font-semibold text-white">{value}</span></div>;

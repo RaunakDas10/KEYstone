@@ -9,7 +9,7 @@ import { FundStateBadge } from '../../components/common/FundStateBadge';
 export const FreelancerOverview: React.FC = () => {
   const { currentUser } = useAuthStore();
   const { projects } = useProjectStore();
-  const assignedProjects = projects.filter((project) => project.freelancerId === currentUser.id);
+  const assignedProjects = projects.filter((project) => project.freelancerId === currentUser.id && project.status !== 'invitation_pending');
   const openProjects = projects.filter((project) => project.access === 'open' && project.status === 'selection_pending' && !project.freelancerId);
   const activeProjects = assignedProjects.filter((project) => project.status === 'active');
   const submittedApplications = openProjects.filter((project) => project.applications?.some((application) => application.freelancerId === currentUser.id));
